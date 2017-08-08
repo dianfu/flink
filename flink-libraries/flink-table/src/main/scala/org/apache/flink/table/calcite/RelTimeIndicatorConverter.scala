@@ -119,6 +119,11 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         aggregate.getNamedProperties,
         convAggregate)
 
+    case lm: LogicalMatch =>
+      // LogicalMatch doesn't support MEASURES currently,
+      // materialize the time indicator in the future
+      convertMatch(lm)
+
     case _ =>
       throw new TableException(s"Unsupported logical operator: ${other.getClass.getSimpleName}")
   }
@@ -204,6 +209,39 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
       correlate.getCorrelationId,
       correlate.getRequiredColumns,
       correlate.getJoinType)
+  }
+
+  private def convertMatch(`match`: Match): LogicalMatch = {
+    val rowType = `match`.getInput.getRowType
+
+    val measures = `match`.getMeasures.foldLeft(mutable.Map[String, RexNode]()) {
+      case (m, (k, v)) =>
+        m += k -> RelTimeIndicatorConverter.convertExpression(v, rowType, rexBuilder)
+    }
+
+    val patternDefinitions = `match`.getPatternDefinitions
+      .foldLeft(mutable.Map[String, RexNode]()) {
+        case (m, (k, v)) =>
+          m += k -> RelTimeIndicatorConverter.convertExpression(v, rowType, rexBuilder)
+      }
+
+    val partitionKeys = `match`.getPartitionKeys.map { partitionKey =>
+      RelTimeIndicatorConverter.convertExpression(partitionKey, rowType, rexBuilder)
+    }
+
+    LogicalMatch.create(
+      `match`.getInput,
+      `match`.getPattern,
+      `match`.isStrictStart,
+      `match`.isStrictEnd,
+      patternDefinitions,
+      measures,
+      `match`.getAfter,
+      `match`.getSubsets.asInstanceOf[java.util.Map[String, java.util.TreeSet[String]]],
+      `match`.isAllRows,
+      partitionKeys,
+      `match`.getOrderKeys,
+      `match`.getRowType)
   }
 
   private def convertAggregate(aggregate: Aggregate): LogicalAggregate = {

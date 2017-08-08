@@ -291,6 +291,15 @@ abstract class CodeGenerator(
     (input1AccessExprs, input2AccessExprs)
   }
 
+  def generateFieldsAccess(
+      inputType: TypeInformation[_ <: Any],
+      inputTerm: String)
+    : Seq[GeneratedExpression] = {
+    (0 until inputType.getArity) map { idx =>
+      generateFieldAccess(inputType, inputTerm, idx)
+    }
+  }
+
   /**
     * Generates an expression from a sequence of RexNode. If objects or variables can be reused,
     * they will be added to reusable code sections internally. The evaluation result
@@ -753,7 +762,15 @@ abstract class CodeGenerator(
         o.accept(this)
     }
 
-    call.getOperator match {
+    generateCallExpression(call.getOperator, operands, resultType)
+  }
+
+  def generateCallExpression(
+      operator: SqlOperator,
+      operands: Seq[GeneratedExpression],
+      resultType: TypeInformation[_])
+    : GeneratedExpression = {
+    operator match {
       // arithmetic
       case PLUS if isNumeric(resultType) =>
         val left = operands.head

@@ -414,7 +414,15 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.CONCAT_WS,
     SqlStdOperatorTable.TIMESTAMP_ADD,
     ScalarSqlFunctions.LOG,
-
+    // MATCH_RECOGNIZE
+    SqlStdOperatorTable.FIRST,
+    SqlStdOperatorTable.LAST,
+    SqlStdOperatorTable.PREV,
+    SqlStdOperatorTable.NEXT,
+    SqlStdOperatorTable.CLASSIFIER,
+    SqlStdOperatorTable.MATCH_NUMBER,
+    SqlStdOperatorTable.FINAL,
+    SqlStdOperatorTable.RUNNING,
     // EXTENSIONS
     SqlStdOperatorTable.TUMBLE,
     SqlStdOperatorTable.TUMBLE_START,
