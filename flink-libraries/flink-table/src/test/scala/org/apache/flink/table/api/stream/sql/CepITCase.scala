@@ -19,9 +19,11 @@
 package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.table.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -349,6 +351,139 @@ class CepITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("2,4,5", "2,4,6", "3,4,5", "3,4,6")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testPartitionByOrderByEventTime() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[Either[(Long, (String, Int, Int)), Long]]
+    data.+=(Left((3L, ("ACME", 17, 2))))
+    data.+=(Left((1L, ("ACME", 12, 1))))
+    data.+=(Left((2L, ("BCME", 12, 1))))
+    data.+=(Left((4L, ("BCME", 17, 2))))
+    data.+=(Right(4L))
+    data.+=(Left((5L, ("ACME", 13, 3))))
+    data.+=(Left((7L, ("ACME", 15, 4))))
+    data.+=(Left((8L, ("BCME", 15, 4))))
+    data.+=(Left((6L, ("BCME", 13, 3))))
+    data.+=(Right(8L))
+    data.+=(Left((10L, ("BCME", 20, 5))))
+    data.+=(Left((9L, ("ACME", 20, 5))))
+    data.+=(Right(13L))
+    data.+=(Left((15L, ("ACME", 19, 8))))
+    data.+=(Left((16L, ("BCME", 19, 8))))
+    data.+=(Right(16L))
+
+    val t = env.addSource(new EventTimeSourceFunction[(String, Int, Int)](data))
+      .toTable(tEnv, 'symbol, 'price, 'tax, 'tstamp.rowtime)
+
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+        |SELECT *
+        |FROM Ticker
+        |MATCH_RECOGNIZE (
+        |  PARTITION BY symbol
+        |  ORDER BY tstamp
+        |  MEASURES
+        |    STRT.tstamp AS start_tstamp,
+        |    FIRST(DOWN.tstamp) AS bottom_tstamp,
+        |    FIRST(UP.tstamp) AS end_tstamp,
+        |    FIRST(DOWN.price + DOWN.tax + 1) AS bottom_total,
+        |    FIRST(UP.price + UP.tax) AS end_total
+        |  ONE ROW PER MATCH
+        |  PATTERN (STRT DOWN+ UP+)
+        |  DEFINE
+        |    DOWN AS DOWN.price < PREV(DOWN.price),
+        |    UP AS UP.price > PREV(UP.price)
+        |) AS T
+        |""".stripMargin
+
+    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("ACME,1970-01-01 00:00:00.003,1970-01-01 00:00:00.005,1970-01-01 00:00:00.007,17,19",
+                        "ACME,1970-01-01 00:00:00.003,1970-01-01 00:00:00.005,1970-01-01 00:00:00.007,17,19",
+                        "BCME,1970-01-01 00:00:00.004,1970-01-01 00:00:00.006,1970-01-01 00:00:00.008,17,19",
+                        "BCME,1970-01-01 00:00:00.004,1970-01-01 00:00:00.006,1970-01-01 00:00:00.008,17,19")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testPartitionByOrderByEventTimeAllRowsPerMatch() = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[Either[(Long, (String, Int, Int)), Long]]
+    data.+=(Left((3L, ("ACME", 17, 2))))
+    data.+=(Left((1L, ("ACME", 12, 1))))
+    data.+=(Left((2L, ("BCME", 12, 1))))
+    data.+=(Left((4L, ("BCME", 17, 2))))
+    data.+=(Right(4L))
+    data.+=(Left((5L, ("ACME", 13, 3))))
+    data.+=(Left((7L, ("ACME", 15, 4))))
+    data.+=(Left((8L, ("BCME", 15, 4))))
+    data.+=(Left((6L, ("BCME", 13, 3))))
+    data.+=(Right(8L))
+    data.+=(Left((10L, ("BCME", 20, 5))))
+    data.+=(Left((9L, ("ACME", 20, 5))))
+    data.+=(Right(13L))
+    data.+=(Left((15L, ("ACME", 19, 8))))
+    data.+=(Left((16L, ("BCME", 19, 8))))
+    data.+=(Right(16L))
+
+    val t = env.addSource(new EventTimeSourceFunction[(String, Int, Int)](data))
+      .toTable(tEnv, 'symbol, 'price, 'tax, 'tstamp.rowtime)
+
+    tEnv.registerTable("Ticker", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM Ticker
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY tstamp
+         |  MEASURES
+         |    FIRST(DOWN.price + DOWN.tax + 1) AS bottom_total,
+         |    FIRST(UP.price + UP.tax) AS end_total
+         |  ALL ROWS PER MATCH
+         |  PATTERN (STRT DOWN+ UP+)
+         |  DEFINE
+         |    DOWN AS DOWN.price < PREV(DOWN.price),
+         |    UP AS UP.price > PREV(UP.price)
+         |) AS T
+         |""".stripMargin
+
+    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("ACME,1970-01-01 00:00:00.003,17,2,null,null",
+                        "ACME,1970-01-01 00:00:00.003,17,2,null,null",
+                        "ACME,1970-01-01 00:00:00.005,13,3,17,null",
+                        "ACME,1970-01-01 00:00:00.005,13,3,17,null",
+                        "ACME,1970-01-01 00:00:00.007,15,4,17,19",
+                        "ACME,1970-01-01 00:00:00.007,15,4,17,19",
+                        "ACME,1970-01-01 00:00:00.009,20,5,17,19",
+                        "BCME,1970-01-01 00:00:00.004,17,2,null,null",
+                        "BCME,1970-01-01 00:00:00.004,17,2,null,null",
+                        "BCME,1970-01-01 00:00:00.006,13,3,17,null",
+                        "BCME,1970-01-01 00:00:00.006,13,3,17,null",
+                        "BCME,1970-01-01 00:00:00.008,15,4,17,19",
+                        "BCME,1970-01-01 00:00:00.008,15,4,17,19",
+                        "BCME,1970-01-01 00:00:00.01,20,5,17,19")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

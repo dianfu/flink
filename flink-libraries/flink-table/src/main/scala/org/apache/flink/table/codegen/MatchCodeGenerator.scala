@@ -23,6 +23,7 @@ import java.util
 
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{CLASSIFIER, FINAL, FIRST, LAST, MATCH_NUMBER, NEXT, PREV, RUNNING}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
@@ -571,6 +572,19 @@ class MatchCodeGenerator(
           resultType,
           running,
           rexCall.getOperator == FIRST)
+
+      case rexCall: RexCall if rexCall.getOperator.isInstanceOf[SqlAggFunction] =>
+        val operandsRaw = rexCall.operands.asScala.map(generateExpression)
+        val operands = operandsRaw.map {
+          operand =>
+            val code =
+              s"""
+                |${operand.code}
+                |""".stripMargin
+            operand.copy(code = code)
+        }
+
+        generateCallExpression(rexCall.getOperator, operands, resultType)
 
       case rexCall: RexCall =>
         val operands = rexCall.operands.asScala.map {

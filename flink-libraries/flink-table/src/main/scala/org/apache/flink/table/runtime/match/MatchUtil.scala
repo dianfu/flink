@@ -21,15 +21,21 @@ package org.apache.flink.table.runtime.`match`
 import java.util
 
 import org.apache.calcite.rel.RelCollation
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
+import org.apache.flink.api.common.typeutils.TypeComparator
+import org.apache.flink.cep.{EventComparator, PatternFlatSelectFunction, PatternSelectFunction}
 import org.apache.flink.cep.pattern.conditions.IterativeCondition
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.MatchCodeGenerator
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.aggregate.SortUtil
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
+
+import scala.collection.JavaConverters._
 
 /**
   * An util class to generate match functions.
@@ -110,5 +116,48 @@ object MatchUtil {
       "MatchRecognizePatternFlatSelectFunction",
       body)
     new PatternFlatSelectFunctionRunner(genFunction.name, genFunction.code)
+  }
+
+  private[flink] def createRowTimeSortFunction(
+    orderKeys: RelCollation,
+    inputType: RelDataType,
+    execCfg: ExecutionConfig): Option[EventComparator[Row]] = {
+    if (orderKeys.getFieldCollations.size() > 1) {
+      val rowComp = SortUtil.createRowComparator(
+        inputType,
+        orderKeys.getFieldCollations.asScala.tail, // strip off time collation
+        execCfg)
+
+      Some(new CustomEventComparator(rowComp))
+    } else {
+      None
+    }
+  }
+
+  private[flink] def createProcTimeSortFunction(
+    orderKeys: RelCollation,
+    inputType: RelDataType,
+    execCfg: ExecutionConfig): Option[EventComparator[Row]] = {
+    if (orderKeys.getFieldCollations.size() > 1) {
+      val rowComp = SortUtil.createRowComparator(
+        inputType,
+        orderKeys.getFieldCollations.asScala.tail, // strip off time collation
+        execCfg)
+
+      Some(new CustomEventComparator(rowComp))
+    } else {
+      None
+    }
+  }
+
+  /**
+    * Custom EventComparator.
+    */
+  class CustomEventComparator(
+    private val rowComp: TypeComparator[Row]) extends EventComparator[Row] {
+
+    override def compare(arg0:Row, arg1:Row):Int = {
+      rowComp.compare(arg0, arg1)
+    }
   }
 }

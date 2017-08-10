@@ -22,11 +22,12 @@ import java.util
 import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel._
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.flink.cep.{CEP, PatternStream}
+import org.apache.flink.cep.{CEP, EventComparator, PatternStream}
 import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
@@ -34,6 +35,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.RowtimeProcessFunction
 import org.apache.flink.table.runtime.`match`._
+import org.apache.flink.table.runtime.aggregate.SortUtil
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 
@@ -181,11 +183,18 @@ class DataStreamMatch(
         crowInput
       }
 
-    val inputDS: DataStream[Row] = timestampedInput
+    var inputDS: DataStream[Row] = timestampedInput
       .map(new ConvertToRow)
       .setParallelism(timestampedInput.getParallelism)
       .name("ConvertToRow")
       .returns(inputTypeInfo)
+
+    if (partitionKeys.size() != 0) {
+      val logicalKeys = partitionKeys.asScala.map {
+        case inputRef: RexInputRef => inputRef.getIndex
+      }
+      inputDS = inputDS.keyBy(logicalKeys: _*)
+    }
 
     def translatePattern(
       rexNode: RexNode,
@@ -256,9 +265,39 @@ class DataStreamMatch(
         throw TableException("")
     }
 
+    var comparator: Option[EventComparator[Row]] = None
+    if (orderKeys.getFieldCollations.size() > 0) {
+      // need to identify time between others order fields. Time needs to be first sort element
+      val timeType = SortUtil.getFirstSortField(orderKeys, inputSchema.relDataType).getType
+
+      // time ordering needs to be ascending
+      if (SortUtil.getFirstSortDirection(orderKeys) != Direction.ASCENDING) {
+        throw new TableException("Primary sort order must be ascending on time.")
+      }
+
+      comparator = timeType match {
+        case _ if FlinkTypeFactory.isProctimeIndicatorType(timeType) =>
+          MatchUtil.createProcTimeSortFunction(
+            orderKeys,
+            inputSchema.relDataType,
+            tableEnv.execEnv.getConfig)
+        case _ if FlinkTypeFactory.isRowtimeIndicatorType(timeType) =>
+          MatchUtil.createRowTimeSortFunction(
+            orderKeys,
+            inputSchema.relDataType,
+            tableEnv.execEnv.getConfig
+          )
+        case _ =>
+          throw new TableException("Primary sort order must be on time column.")
+      }
+    }
+
     val patternNames: ListBuffer[String] = ListBuffer()
     val cepPattern = translatePattern(pattern, null, patternNames)
-    val patternStream: PatternStream[Row] = CEP.pattern[Row](inputDS, cepPattern)
+    val patternStream: PatternStream[Row] = comparator match {
+      case Some(c) => CEP.pattern[Row](inputDS, cepPattern, c)
+      case None => CEP.pattern[Row](inputDS, cepPattern)
+    }
 
     val outTypeInfo = CRowTypeInfo(schema.typeInfo)
     if (allRows) {
