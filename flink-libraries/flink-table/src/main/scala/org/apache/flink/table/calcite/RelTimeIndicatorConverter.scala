@@ -120,8 +120,6 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         convAggregate)
 
     case lm: LogicalMatch =>
-      // LogicalMatch doesn't support MEASURES currently,
-      // materialize the time indicator in the future
       convertMatch(lm)
 
     case _ =>

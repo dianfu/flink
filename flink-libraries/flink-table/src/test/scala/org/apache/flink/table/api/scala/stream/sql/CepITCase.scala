@@ -34,6 +34,7 @@ class CepITCase extends StreamingWithStateTestBase {
   @Test
   def testSimpleCEP() = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
@@ -79,6 +80,7 @@ class CepITCase extends StreamingWithStateTestBase {
   @Test
   def testAllRowsPerMatch() = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
@@ -125,6 +127,7 @@ class CepITCase extends StreamingWithStateTestBase {
   @Test
   def testFinalFirst() = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
@@ -171,6 +174,7 @@ class CepITCase extends StreamingWithStateTestBase {
   @Test
   def testFinalLast() = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
@@ -217,6 +221,7 @@ class CepITCase extends StreamingWithStateTestBase {
   @Test
   def testPrev() = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
@@ -260,6 +265,7 @@ class CepITCase extends StreamingWithStateTestBase {
   @Test
   def testRunningFirst() = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
@@ -304,6 +310,7 @@ class CepITCase extends StreamingWithStateTestBase {
   @Test
   def testRunningLast() = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 

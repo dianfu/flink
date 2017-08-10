@@ -291,15 +291,6 @@ abstract class CodeGenerator(
     (input1AccessExprs, input2AccessExprs)
   }
 
-  def generateFieldsAccess(
-      inputType: TypeInformation[_ <: Any],
-      inputTerm: String)
-    : Seq[GeneratedExpression] = {
-    (0 until inputType.getArity) map { idx =>
-      generateFieldAccess(inputType, inputTerm, idx)
-    }
-  }
-
   /**
     * Generates an expression from a sequence of RexNode. If objects or variables can be reused,
     * they will be added to reusable code sections internally. The evaluation result
@@ -1089,7 +1080,7 @@ abstract class CodeGenerator(
     GeneratedExpression(resultTerm, nullTerm, inputCheckCode, fieldType)
   }
 
-  private def generateFieldAccess(
+  def generateFieldAccess(
       inputType: TypeInformation[_],
       inputTerm: String,
       index: Int)
@@ -1641,6 +1632,14 @@ abstract class CodeGenerator(
         |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
+  }
+
+  def addReusableInitStatement(initStatement: String): Unit = {
+    reusableInitStatements.add(initStatement)
+  }
+
+  def addReusableMemberStatement(memberStatement: String): Unit = {
+    reusableMemberStatements.add(memberStatement)
   }
 
   /**

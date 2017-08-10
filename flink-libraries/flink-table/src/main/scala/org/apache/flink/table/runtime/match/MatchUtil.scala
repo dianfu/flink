@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.`match`
 
 import java.util
 
+import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
@@ -30,14 +31,12 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 
-import scala.collection.JavaConverters._
-
 /**
   * An util class to generate match functions.
   */
 object MatchUtil {
 
-  private[flink] def generateCondition(
+  private[flink] def generateIterativeCondition(
     config: TableConfig,
     inputType: RowSchema,
     patternName: String,
@@ -46,7 +45,7 @@ object MatchUtil {
     inputTypeInfo: TypeInformation[_]): IterativeCondition[Row] = {
 
     val generator = new MatchCodeGenerator(
-      config, inputTypeInfo, patternNames, true, Some(patternName))
+      config, false, inputTypeInfo, patternNames, true, Some(patternName))
     val condition = generator.generateExpression(inputType.mapRexNode(patternDefinition))
     val body =
       s"""
@@ -54,6 +53,7 @@ object MatchUtil {
         |return ${condition.resultTerm};
         |""".stripMargin
 
+    generator.addReusableStatementsForIterativeConditionFunction()
     val genCondition = generator.generateIterativeCondition("MatchRecognizeCondition", body)
     new IterativeConditionRunner(genCondition.name, genCondition.code)
   }
@@ -62,22 +62,23 @@ object MatchUtil {
     config: TableConfig,
     returnType: RowSchema,
     patternNames: Seq[String],
+    partitionKeys: util.List[RexNode],
     measures: util.Map[String, RexNode],
     inputTypeInfo: TypeInformation[_]): PatternSelectFunction[Row, CRow] = {
 
-    val generator = new MatchCodeGenerator(config, inputTypeInfo, patternNames, false)
+    val generator = new MatchCodeGenerator(config, false, inputTypeInfo, patternNames, false)
 
-    val resultExpression = generator.generateResultExpression(
-      returnType.physicalTypeInfo,
-      returnType.physicalFieldNames,
-      returnType.physicalFieldNames.map(fieldName => measures.get(fieldName)))
-
+    val resultExpression = generator.generateSelectOutputExpression(
+      partitionKeys,
+      measures,
+      returnType)
     val body =
       s"""
         |${resultExpression.code}
         |return ${resultExpression.resultTerm};
         |""".stripMargin
 
+    generator.addReusableStatementsForPatterSelectFunction()
     val genFunction = generator.generatePatternSelectFunction(
       "MatchRecognizePatternSelectFunction",
       body)
@@ -88,20 +89,24 @@ object MatchUtil {
     config: TableConfig,
     returnType: RowSchema,
     patternNames: Seq[String],
+    partitionKeys: util.List[RexNode],
+    orderKeys: RelCollation,
     measures: util.Map[String, RexNode],
     inputTypeInfo: TypeInformation[_]): PatternFlatSelectFunction[Row, CRow] = {
 
-    val generator = new MatchCodeGenerator(config, inputTypeInfo, patternNames, false)
+    val generator = new MatchCodeGenerator(config, false, inputTypeInfo, patternNames, false)
 
     val resultExpression = generator.generateFlatSelectOutputExpression(
+      partitionKeys,
+      orderKeys,
       measures,
-      inputTypeInfo,
       returnType)
     val body =
       s"""
         |${resultExpression.code}
         |""".stripMargin
 
+    generator.addReusableStatementsForPatterFlatSelectFunction()
     val genFunction = generator.generatePatternFlatSelectFunction(
       "MatchRecognizePatternFlatSelectFunction",
       body)

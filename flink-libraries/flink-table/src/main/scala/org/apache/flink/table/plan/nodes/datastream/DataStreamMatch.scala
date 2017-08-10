@@ -180,7 +180,7 @@ class DataStreamMatch(
 
         val patternDefinition = patternDefinitions.get(patternName)
         if (patternDefinition != null) {
-          val condition = MatchUtil.generateCondition(
+          val condition = MatchUtil.generateIterativeCondition(
             config,
             inputSchema,
             patternName,
@@ -213,15 +213,17 @@ class DataStreamMatch(
               .getValue3.asInstanceOf[JBigDecimal].intValue()
 
             if (startNum == 0 && endNum == -1) {        // zero or more
-              newPattern.oneOrMore().optional()
+              newPattern.oneOrMore().optional().consecutive()
             } else if (startNum == 1 && endNum == -1) { // one or more
-              newPattern.oneOrMore()
+              newPattern.oneOrMore().consecutive()
             } else if (startNum == 0 && endNum == 1) {  // optional
               newPattern.optional()
-            } else {                                    // times
-              newPattern.times(startNum, endNum)
+            } else if (endNum != -1) {                  // times
+              newPattern.times(startNum, endNum).consecutive()
+            } else {                                    // times or more
+              // See FLINK-7123 for details
+              throw TableException("Currently, CEP doesn't support times or more quantifier.")
             }
-            newPattern.consecutive()
 
           case PATTERN_ALTER =>
             throw TableException("Currently, CEP doesn't support branching patterns.")
@@ -243,12 +245,25 @@ class DataStreamMatch(
 
     val outTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
     if (allRows) {
-      val patternFlatSelectFunction = MatchUtil.generatePatternFlatSelectFunction(
-        config, schema, patternNames, measures, inputTypeInfo)
+      val patternFlatSelectFunction =
+        MatchUtil.generatePatternFlatSelectFunction(
+          config,
+          schema,
+          patternNames,
+          partitionKeys,
+          orderKeys,
+          measures,
+          inputTypeInfo)
       patternStream.flatSelect[CRow](patternFlatSelectFunction, outTypeInfo)
     } else {
-      val patternSelectFunction = MatchUtil.generatePatternSelectFunction(
-        config, schema, patternNames, measures, inputTypeInfo)
+      val patternSelectFunction =
+        MatchUtil.generatePatternSelectFunction(
+          config,
+          schema,
+          patternNames,
+          partitionKeys,
+          measures,
+          inputTypeInfo)
       patternStream.select[CRow](patternSelectFunction, outTypeInfo)
     }
   }
