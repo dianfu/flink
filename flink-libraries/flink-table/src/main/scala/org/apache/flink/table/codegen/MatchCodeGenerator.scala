@@ -25,7 +25,6 @@ import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{CLASSIFIER, FINAL, FIRST, LAST, MATCH_NUMBER, NEXT, PREV, RUNNING}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.cep.{PatternFlatSelectFunction, PatternSelectFunction}
 import org.apache.flink.cep.pattern.conditions.IterativeCondition
 import org.apache.flink.table.api.TableConfig
@@ -58,59 +57,31 @@ class MatchCodeGenerator(
   extends CodeGenerator(config, nullableInput, input){
 
   /**
-    * @return term of flag indicating RUNNING semantics is desired
-    */
-  private var runningTerm = newName("running")
-
-  /**
     * @return term of pattern names
     */
-  private var patternNameListTerm = newName("patternNameList")
+  private val patternNameListTerm = newName("patternNameList")
 
   /**
     * @return term of current pattern which is processing
     */
-  private var currPatternTerm = newName("currPattern")
+  private val currPatternTerm = newName("currPattern")
 
   /**
     * @return term of current event which is processing
     */
-  private var currEventTerm = newName("currEvent")
+  private val currEventTerm = newName("currEvent")
 
-  private var buildPatternNameList: String = {
+  private val buildPatternNameList: String = {
     for (patternName <- patternNames) yield
       s"""
         |$patternNameListTerm.add("$patternName");
         |""".stripMargin
   }.mkString("\n")
 
-  def addReusableStatementsForIterativeConditionFunction(): Unit = {
-    val memberStatement =
-      s"""
-        |boolean $runningTerm = false;
-        |""".stripMargin
-    addReusableMemberStatement(memberStatement)
-  }
-
-  def addReusableStatementsForPatterSelectFunction(): Unit = {
+  def addReusableStatements(): Unit = {
     val eventTypeTerm = boxedTypeTermForTypeInfo(input)
     val memberStatement =
       s"""
-        |boolean $runningTerm = false;
-        |$eventTypeTerm $currEventTerm = null;
-        |String $currPatternTerm = null;
-        |java.util.List<String> $patternNameListTerm = new java.util.ArrayList();
-        |""".stripMargin
-    addReusableMemberStatement(memberStatement)
-
-    addReusableInitStatement(buildPatternNameList)
-  }
-
-  def addReusableStatementsForPatterFlatSelectFunction(): Unit = {
-    val eventTypeTerm = boxedTypeTermForTypeInfo(input)
-    val memberStatement =
-      s"""
-        |boolean $runningTerm = false;
         |$eventTypeTerm $currEventTerm = null;
         |String $currPatternTerm = null;
         |java.util.List<String> $patternNameListTerm = new java.util.ArrayList();
@@ -381,56 +352,6 @@ class MatchCodeGenerator(
     }
   }
 
-  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression = {
-    val resultTerm = newName("result")
-    val patternNameTerm = newName("patternName")
-    val eventNameTerm = newName("event")
-    val eventNameListTerm = newName("eventList")
-
-    val resultType = new ListTypeInfo(FlinkTypeFactory.toTypeInfo(fieldRef.getType))
-    val eventTypeTerm = boxedTypeTermForTypeInfo(input)
-    val listTypeTerm = classOf[java.util.List[_]].getCanonicalName
-
-    val resultCode =
-      if (generateCondition) {
-        s"""
-          |java.util.List $resultTerm = new java.util.ArrayList();
-          |for ($eventTypeTerm $eventNameTerm : $contextTerm
-          |     .getEventsForPattern("${fieldRef.getAlpha}")) {
-          |  $resultTerm.add($eventNameTerm.getField(${fieldRef.getIndex}));
-          |}
-          |""".stripMargin
-      } else {
-        s"""
-          |java.util.List $resultTerm = new java.util.ArrayList();
-          |for (String $patternNameTerm : $patternNameListTerm) {
-          |  if ($patternNameTerm.equals("${fieldRef.getAlpha}") ||
-          |      ${fieldRef.getAlpha.equals("*")}) {
-          |    boolean skipLoop = false;
-          |    $listTypeTerm $eventNameListTerm = ($listTypeTerm) $input1Term.get($patternNameTerm);
-          |    if ($eventNameListTerm != null) {
-          |      for ($eventTypeTerm $eventNameTerm : $eventNameListTerm) {
-          |        $resultTerm.add($eventNameTerm.getField(${fieldRef.getIndex}));
-          |        if ($runningTerm && $eventNameTerm == $currEventTerm) {
-          |          skipLoop = true;
-          |          break;
-          |        }
-          |      }
-          |    }
-          |    if (skipLoop) {
-          |      break;
-          |    }
-          |  }
-          |
-          |  if ($runningTerm && $patternNameTerm.equals($currPatternTerm)) {
-          |    break;
-          |  }
-          |}
-          |""".stripMargin
-      }
-    GeneratedExpression(resultTerm, "false", resultCode, resultType)
-  }
-
   private def generatePrev(
       rexNode: RexNode,
       count: Int,
@@ -457,31 +378,43 @@ class MatchCodeGenerator(
         val patternNamesToVisit = patternNames
           .take(patternNames.indexOf(patternFieldRef.getAlpha) + 1)
           .reverse
-        val findEventByPhysicalPosition: String = {
-          for (tmpPatternName <- patternNamesToVisit) yield
+        def findEventByPhysicalPosition: String = {
+          val init: String =
             s"""
-              |for ($eventTypeTerm $eventTerm : $contextTerm
-              |    .getEventsForPattern("$tmpPatternName")) {
-              |  $listName.add($eventTerm.getField(${patternFieldRef.getIndex}));
-              |}
-              |
-              |$indexTerm = $listName.size() - ($count - $visitedEventNumberTerm);
-              |if ($indexTerm >= 0) {
-              |  $resultTerm = ($resultTypeTerm) $listName.get($indexTerm);
-              |  $nullTerm = false;
-              |  break;
-              |}
-              |
-              |$visitedEventNumberTerm += $listName.size();
-              |$listName.clear();
+              |java.util.List $listName = new java.util.ArrayList();
               |""".stripMargin
-        }.mkString("\n")
+
+          val getResult: String = {
+            for (tmpPatternName <- patternNamesToVisit) yield
+              s"""
+                |for ($eventTypeTerm $eventTerm : $contextTerm
+                |    .getEventsForPattern("$tmpPatternName")) {
+                |  $listName.add($eventTerm);
+                |}
+                |
+                |$indexTerm = $listName.size() - ($count - $visitedEventNumberTerm);
+                |if ($indexTerm >= 0) {
+                |  $resultTerm = ($resultTypeTerm) (($eventTypeTerm) $listName.get($indexTerm))
+                |    .getField(${patternFieldRef.getIndex});
+                |  $nullTerm = false;
+                |  break;
+                |}
+                |
+                |$visitedEventNumberTerm += $listName.size();
+                |$listName.clear();
+                |""".stripMargin
+          }.mkString("\n")
+
+          s"""
+            |$init
+            |$getResult
+            |""".stripMargin
+        }
 
         val resultCode =
           s"""
             |int $visitedEventNumberTerm = 0;
             |int $indexTerm;
-            |java.util.List $listName = new java.util.ArrayList();
             |$resultTypeTerm $resultTerm = $defaultValue;
             |boolean $nullTerm = true;
             |do {
@@ -514,32 +447,91 @@ class MatchCodeGenerator(
       first: Boolean)
     : GeneratedExpression = {
     rexNode match {
-      case _: RexPatternFieldRef =>
-        val generatedExpression = generateExpression(rexNode)
+      case patternFieldRef: RexPatternFieldRef =>
 
-        val eventsName = generatedExpression.resultTerm
+        val eventNameTerm = newName("event")
         val resultTerm = newName("result")
+        val listName = newName("patternEvents")
         val nullTerm = newName("isNull")
+        val patternNameTerm = newName("patternName")
+        val eventNameListTerm = newName("eventNameList")
         val resultTypeTerm = boxedTypeTermForTypeInfo(resultType)
         val defaultValue = primitiveDefaultValue(resultType)
 
+        val eventTypeTerm = boxedTypeTermForTypeInfo(input)
+        val listTypeTerm = classOf[java.util.List[_]].getCanonicalName
+
+        def findEventByLogicalPosition: String = {
+          val init =
+            s"""
+              |java.util.List $listName = new java.util.ArrayList();
+              |""".stripMargin
+
+          val findEventsByPatterName = if (generateCondition) {
+            s"""
+              |for ($eventTypeTerm $eventNameTerm : $contextTerm
+              |    .getEventsForPattern("${patternFieldRef.getAlpha}")) {
+              |  $listName.add($eventNameTerm);
+              |}
+              |""".stripMargin
+          } else {
+            s"""
+              |for (String $patternNameTerm : $patternNameListTerm) {
+              |  if ($patternNameTerm.equals("${patternFieldRef.getAlpha}") ||
+              |      ${patternFieldRef.getAlpha.equals("*")}) {
+              |    boolean skipLoop = false;
+              |    $listTypeTerm $eventNameListTerm =
+              |      ($listTypeTerm) $input1Term.get($patternNameTerm);
+              |    if ($eventNameListTerm != null) {
+              |      for ($eventTypeTerm $eventNameTerm : $eventNameListTerm) {
+              |        $listName.add($eventNameTerm);
+              |        if ($running && $eventNameTerm == $currEventTerm) {
+              |          skipLoop = true;
+              |          break;
+              |        }
+              |      }
+              |    }
+              |
+              |    if (skipLoop) {
+              |      break;
+              |    }
+              |  }
+              |
+              |  if ($running && $patternNameTerm.equals($currPatternTerm)) {
+              |    break;
+              |  }
+              |}
+              |""".stripMargin
+          }
+
+          val getResult =
+            s"""
+              |if ($listName.size() > $count) {
+              |  if ($first) {
+              |    $resultTerm = ($resultTypeTerm) (($eventTypeTerm)
+              |      $listName.get($count))
+              |        .getField(${patternFieldRef.getIndex});
+              |  } else {
+              |    $resultTerm = ($resultTypeTerm) (($eventTypeTerm)
+              |      $listName.get($listName.size() - $count - 1))
+              |        .getField(${patternFieldRef.getIndex});
+              |  }
+              |  $nullTerm = false;
+              |}
+              |""".stripMargin
+
+          s"""
+            |$init
+            |$findEventsByPatterName
+            |$getResult
+            |""".stripMargin
+        }
+
         val resultCode =
           s"""
-            |$runningTerm = $running;
-            |${generatedExpression.code}
-            |$resultTypeTerm $resultTerm;
-            |boolean $nullTerm;
-            |if ($eventsName.size() > $count) {
-            |  if ($first) {
-            |    $resultTerm = ($resultTypeTerm) $eventsName.get($count);
-            |  } else {
-            |    $resultTerm = ($resultTypeTerm) $eventsName.get($eventsName.size() - $count - 1);
-            |  }
-            |  $nullTerm = false;
-            |} else {
-            |  $resultTerm = $defaultValue;
-            |  $nullTerm = true;
-            |}
+            |$resultTypeTerm $resultTerm = $defaultValue;
+            |boolean $nullTerm = true;
+            |$findEventByLogicalPosition
             |""".stripMargin
 
         GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)

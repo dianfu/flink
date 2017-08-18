@@ -53,7 +53,6 @@ object MatchUtil {
         |return ${condition.resultTerm};
         |""".stripMargin
 
-    generator.addReusableStatementsForIterativeConditionFunction()
     val genCondition = generator.generateIterativeCondition("MatchRecognizeCondition", body)
     new IterativeConditionRunner(genCondition.name, genCondition.code)
   }
@@ -78,7 +77,7 @@ object MatchUtil {
         |return ${resultExpression.resultTerm};
         |""".stripMargin
 
-    generator.addReusableStatementsForPatterSelectFunction()
+    generator.addReusableStatements()
     val genFunction = generator.generatePatternSelectFunction(
       "MatchRecognizePatternSelectFunction",
       body)
@@ -106,7 +105,7 @@ object MatchUtil {
         |${resultExpression.code}
         |""".stripMargin
 
-    generator.addReusableStatementsForPatterFlatSelectFunction()
+    generator.addReusableStatements()
     val genFunction = generator.generatePatternFlatSelectFunction(
       "MatchRecognizePatternFlatSelectFunction",
       body)
