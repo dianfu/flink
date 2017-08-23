@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.scala.stream.sql
+package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals

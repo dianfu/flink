@@ -30,7 +30,9 @@ import org.apache.flink.cep.{CEP, PatternStream}
 import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.RowtimeProcessFunction
 import org.apache.flink.table.runtime.`match`._
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
@@ -60,7 +62,7 @@ class DataStreamMatch(
   extends SingleRel(cluster, traitSet, input)
   with DataStreamRel {
 
-  override def deriveRowType(): RelDataType = schema.logicalType
+  override def deriveRowType(): RelDataType = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new DataStreamMatch(
@@ -91,7 +93,7 @@ class DataStreamMatch(
     }${
       if (!orderKeys.getFieldCollations.isEmpty) {
         s"ORDER BY: ${orderKeys.getFieldCollations.asScala.map {
-          x => inputSchema.logicalType.getFieldList.get(x.getFieldIndex).getName
+          x => inputSchema.relDataType.getFieldList.get(x.getFieldIndex).getName
         }.mkString(", ")}, "
       } else {
         ""
@@ -136,7 +138,7 @@ class DataStreamMatch(
         !partitionKeys.isEmpty)
       .itemIf("orderBy",
         orderKeys.getFieldCollations.asScala.map {
-          x => inputSchema.logicalType.getFieldList.get(x.getFieldIndex).getName
+          x => inputSchema.relDataType.getFieldList.get(x.getFieldIndex).getName
         }.mkString(", "),
         !orderKeys.getFieldCollations.isEmpty)
       .itemIf("measures",
@@ -157,15 +159,31 @@ class DataStreamMatch(
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.config
-    val inputTypeInfo = inputSchema.physicalTypeInfo
+    val inputTypeInfo = inputSchema.typeInfo
     
     val crowInput: DataStream[CRow] = getInput
       .asInstanceOf[DataStreamRel]
       .translateToPlan(tableEnv, queryConfig)
 
-    val inputDS: DataStream[Row] = crowInput
+    val rowtimeFields = inputSchema.relDataType
+      .getFieldList.asScala
+      .filter(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
+
+    val timestampedInput = if (rowtimeFields.nonEmpty) {
+      // copy the rowtime field into the StreamRecord timestamp field
+      val timeIdx = rowtimeFields.head.getIndex
+
+      crowInput
+        .process(new RowtimeProcessFunction(timeIdx, CRowTypeInfo(inputTypeInfo)))
+        .setParallelism(crowInput.getParallelism)
+        .name(s"rowtime field: (${rowtimeFields.head})")
+      } else {
+        crowInput
+      }
+
+    val inputDS: DataStream[Row] = timestampedInput
       .map(new ConvertToRow)
-      .setParallelism(crowInput.getParallelism)
+      .setParallelism(timestampedInput.getParallelism)
       .name("ConvertToRow")
       .returns(inputTypeInfo)
 
@@ -221,8 +239,7 @@ class DataStreamMatch(
             } else if (endNum != -1) {                  // times
               newPattern.times(startNum, endNum).consecutive()
             } else {                                    // times or more
-              // See FLINK-7123 for details
-              throw TableException("Currently, CEP doesn't support times or more quantifier.")
+              newPattern.timesOrMore(startNum).consecutive()
             }
 
           case PATTERN_ALTER =>
@@ -243,7 +260,7 @@ class DataStreamMatch(
     val cepPattern = translatePattern(pattern, null, patternNames)
     val patternStream: PatternStream[Row] = CEP.pattern[Row](inputDS, cepPattern)
 
-    val outTypeInfo = CRowTypeInfo(schema.physicalTypeInfo)
+    val outTypeInfo = CRowTypeInfo(schema.typeInfo)
     if (allRows) {
       val patternFlatSelectFunction =
         MatchUtil.generatePatternFlatSelectFunction(

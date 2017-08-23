@@ -46,7 +46,7 @@ object MatchUtil {
 
     val generator = new MatchCodeGenerator(
       config, false, inputTypeInfo, patternNames, true, Some(patternName))
-    val condition = generator.generateExpression(inputType.mapRexNode(patternDefinition))
+    val condition = generator.generateExpression(patternDefinition)
     val body =
       s"""
         |${condition.code}

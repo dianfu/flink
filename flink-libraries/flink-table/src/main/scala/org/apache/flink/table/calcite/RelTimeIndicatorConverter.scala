@@ -32,6 +32,7 @@ import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -217,29 +218,29 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         m += k -> RelTimeIndicatorConverter.convertExpression(v, rowType, rexBuilder)
     }
 
-    val patternDefinitions = `match`.getPatternDefinitions
-      .foldLeft(mutable.Map[String, RexNode]()) {
-        case (m, (k, v)) =>
-          m += k -> RelTimeIndicatorConverter.convertExpression(v, rowType, rexBuilder)
-      }
-
-    val partitionKeys = `match`.getPartitionKeys.map { partitionKey =>
-      RelTimeIndicatorConverter.convertExpression(partitionKey, rowType, rexBuilder)
-    }
+    val outputTypeBuilder = rexBuilder
+      .getTypeFactory
+      .asInstanceOf[FlinkTypeFactory]
+      .builder()
+    `match`.getRowType.getFieldList.asScala
+      .foreach(x => measures.get(x.getName) match {
+        case Some(measure) => outputTypeBuilder.add(x.getName, measure.getType)
+        case None => outputTypeBuilder.add(x)
+      })
 
     LogicalMatch.create(
       `match`.getInput,
       `match`.getPattern,
       `match`.isStrictStart,
       `match`.isStrictEnd,
-      patternDefinitions,
+      `match`.getPatternDefinitions,
       measures,
       `match`.getAfter,
       `match`.getSubsets.asInstanceOf[java.util.Map[String, java.util.TreeSet[String]]],
       `match`.isAllRows,
-      partitionKeys,
+      `match`.getPartitionKeys,
       `match`.getOrderKeys,
-      `match`.getRowType)
+      outputTypeBuilder.build())
   }
 
   private def convertAggregate(aggregate: Aggregate): LogicalAggregate = {

@@ -233,14 +233,14 @@ class MatchCodeGenerator(
     val resultExprs =
       partitionKeys.asScala.map { case inputRef: RexInputRef =>
         generateFieldAccess(input, eventNameTerm, inputRef.getIndex)
-      } ++ returnType.physicalFieldNames.filter(measures.containsKey(_)).map { fieldName =>
+      } ++ returnType.fieldNames.filter(measures.containsKey(_)).map { fieldName =>
         generateExpression(measures.get(fieldName))
       }
 
     val resultExpression = generateResultExpression(
       resultExprs,
-      returnType.physicalTypeInfo,
-      returnType.physicalFieldNames)
+      returnType.typeInfo,
+      returnType.fieldNames)
 
     val resultCode =
       s"""
@@ -289,14 +289,14 @@ class MatchCodeGenerator(
         generateFieldAccess(input, eventNameTerm, fieldCollation.getFieldIndex)
       } ++ (0 until input.getArity).filterNot(fieldsAccessed.contains).map { idx =>
         generateFieldAccess(input, eventNameTerm, idx)
-      } ++ returnType.physicalFieldNames.filter(measures.containsKey(_)).map { fieldName =>
+      } ++ returnType.fieldNames.filter(measures.containsKey(_)).map { fieldName =>
         generateExpression(measures.get(fieldName))
       }
 
     val resultExpression = generateResultExpression(
       resultExprs,
-      returnType.physicalTypeInfo,
-      returnType.physicalFieldNames)
+      returnType.typeInfo,
+      returnType.fieldNames)
 
     val resultCode =
       s"""
