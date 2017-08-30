@@ -134,6 +134,12 @@ abstract class LogicalNode extends TreeNode[LogicalNode] {
     val newArgs = productIterator.map {
       case e: Expression => expressionPostOrderTransform(e)
       case Some(e: Expression) => Some(expressionPostOrderTransform(e))
+      case map: Map[_, _] => map.map {
+        case (k: Expression, v: Expression) =>
+          (expressionPostOrderTransform(k), expressionPostOrderTransform(v))
+        case (k, v: Expression) => (k, expressionPostOrderTransform(v))
+        case (k: Expression, v) => (expressionPostOrderTransform(k), v)
+      }
       case seq: Traversable[_] => seq.map {
         case e: Expression => expressionPostOrderTransform(e)
         case other => other

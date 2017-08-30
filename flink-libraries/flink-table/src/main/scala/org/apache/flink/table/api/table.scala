@@ -17,18 +17,23 @@
  */
 package org.apache.flink.table.api
 
+import _root_.java.util
+
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.flink.shaded.guava18.com.google.common.collect.Maps
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
+import org.apache.flink.table.expressions.{AfterMatch, AfterSymbol, Alias, Asc, Expression, ExpressionParser, Ordering, PatternDefination, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.plan.MatchRecognizeTranslator._
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
 
 /**
   * A Table is the core component of the Table API.
@@ -858,6 +863,10 @@ class Table(
     new OverWindowedTable(this, overWindows.toArray)
   }
 
+  def matchRecognize(): MatchRecognizeTable = {
+    new MatchRecognizeTable(this)
+  }
+
   var tableName: String = _
 
   /**
@@ -1076,5 +1085,98 @@ class WindowGroupedTable(
     val withResolvedAggFunctionCall = fieldExprs.map(replaceAggFunctionCall(_, table.tableEnv))
     select(withResolvedAggFunctionCall: _*)
   }
+}
 
+class MatchRecognizeTable(private[flink] val table: Table) {
+  var pattern: Expression = _
+  val patternDefinitions: mutable.Map[String, Expression] = mutable.Map()
+  val measureList: mutable.ListBuffer[Expression] = mutable.ListBuffer()
+  var partitionKeys: Seq[Expression] = Seq()
+  var orderKeys: Seq[Expression] = Seq()
+  var strictStart: Boolean = false
+  var strictEnd: Boolean = false
+  var after: Expression = AfterMatch(AfterSymbol(1))
+  var subsets: util.Map[String, util.TreeSet[String]] = Maps.newHashMap()
+  var allRows: Boolean = false
+
+  def pattern(ptn: Expression): MatchRecognizeTable = {
+    this.pattern = ptn
+    this
+  }
+
+  def pattern(ptn: String): MatchRecognizeTable = {
+    pattern(ExpressionParser.parseExpression(ptn))
+  }
+
+  def define(patternDefinitions: Expression*): MatchRecognizeTable = {
+    patternDefinitions.foreach(e => {
+      val p = e.asInstanceOf[PatternDefination]
+      this.patternDefinitions += (p.name -> p.child)
+    })
+    this
+  }
+
+  def define(patternDefinitions: String): MatchRecognizeTable = {
+    val patternDefinitionExprs = ExpressionParser.parseExpressionList(patternDefinitions)
+    define(patternDefinitionExprs: _*)
+  }
+
+  def measures(fields: Expression*): MatchRecognizeTable = {
+    measureList ++= fields
+    this
+  }
+
+  def measures(fields: String): MatchRecognizeTable = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    measures(fieldExprs: _*)
+  }
+
+  def partitionBy(fields: Expression*): MatchRecognizeTable = {
+    partitionKeys = partitionKeys ++ fields
+    this
+  }
+
+  def partitionBy(fields: String): MatchRecognizeTable = {
+    val parsedFields = ExpressionParser.parseExpressionList(fields)
+    partitionBy(parsedFields: _*)
+  }
+
+  def orderBy(fields: Expression*): MatchRecognizeTable = {
+    orderKeys = fields.map {
+      case o: Ordering => o
+      case e => Asc(e)
+    }
+    this
+  }
+
+  def orderBy(fields: String): MatchRecognizeTable = {
+    val parsedFields = ExpressionParser.parseExpressionList(fields)
+    orderBy(parsedFields: _*)
+  }
+
+  def allRows(allRows: Boolean): MatchRecognizeTable = {
+    this.allRows = allRows
+    this
+  }
+
+  def build(): Table = {
+    val patternNames = extractPatternNames(pattern) ++
+      subsets.keySet().asScala
+    val withResolvedPatternDefinitions = patternDefinitions
+      .mapValues(replacePatternFieldRef(patternNames, _, table))
+      .mapValues(replaceMatchRecognizeCall(_, table.tableEnv))
+      .mapValues(expandNavigation(_, table.tableEnv))
+      .map(d => d._1 -> replaceNavigation(d._1, d._2))
+      .toMap
+    val withResolvedMeasureList = measureList
+      .map(replacePatternFieldRef(patternNames, _, table))
+      .map(replaceMatchRecognizeCall(_, table.tableEnv))
+      .map(expandNavigation(_, table.tableEnv))
+      .map(replaceRunningOrFinalInMeasure(_, allRows))
+
+    new Table(table.tableEnv,
+      MatchRecognize(pattern, strictStart, strictEnd, withResolvedPatternDefinitions,
+        withResolvedMeasureList, after, subsets, allRows, partitionKeys, orderKeys,
+        table.logicalPlan).validate(table.tableEnv))
+  }
 }

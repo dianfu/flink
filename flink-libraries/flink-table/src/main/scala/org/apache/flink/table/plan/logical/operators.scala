@@ -36,6 +36,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.plan.MatchRecognizeTranslator._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
@@ -742,5 +743,65 @@ case class LogicalTableFunctionCall(
       null)
 
     relBuilder.push(scan)
+  }
+}
+
+case class MatchRecognize(
+    pattern: Expression,
+    strictStart: Boolean,
+    strictEnd: Boolean,
+    patternDefinitions: Map[String, Expression],
+    measures: Seq[Expression],
+    after: Expression,
+    subsets: util.Map[String, util.TreeSet[String]],
+    allRows: Boolean,
+    partitionKeys: Seq[Expression],
+    orderKeys: Seq[Expression],
+    child: LogicalNode)
+  extends UnaryNode {
+
+  override def output: Seq[Attribute] = child.output
+
+  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+    child.construct(relBuilder)
+    relBuilder.matchRecognize(
+      pattern.toRexNode(relBuilder),
+      strictStart,
+      strictEnd,
+      patternDefinitions.mapValues(_.toRexNode(relBuilder)).asJava,
+      measures.map(_.toRexNode(relBuilder)).asJava,
+      after.toRexNode(relBuilder),
+      subsets,
+      allRows,
+      partitionKeys.map(_.toRexNode(relBuilder)).asJava,
+      orderKeys.map(_.toRexNode(relBuilder)).asJava)
+  }
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    if (pattern == null) {
+      ValidationFailure(s"Pattern must be defined.")
+    }
+    if (patternDefinitions.isEmpty) {
+      ValidationFailure(s"Missing pattern definitions.")
+    }
+    val patternNames: Set[String] = extractPatternNames(pattern)
+    patternDefinitions.foreach {
+      case (p, _) if !patternNames.contains(p) =>
+        ValidationFailure(s"The Pattern '$p' defined in pattern definition clause does not exist.")
+      case _ =>
+    }
+
+    if (!allRows && measures.isEmpty && partitionKeys.isEmpty) {
+      ValidationFailure(s"There should be at least one partition column" +
+                          s"or measure column when 'ONE ROW PER MATCH' is enabled.")
+    }
+
+    if (after.asInstanceOf[AfterMatch].after.afterOption >= 3 &&
+      !patternNames.contains(after.asInstanceOf[AfterMatch].after.sym)) {
+      ValidationFailure(s"The Pattern '${after.asInstanceOf[AfterMatch].after.sym}'" +
+                          s" used in 'AFTER MATCH SKIP' clause does not exist.")
+    }
+
+    super.validate(tableEnv)
   }
 }

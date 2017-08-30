@@ -491,8 +491,87 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       case e ~ _ ~ name => Alias(e, name.name)
   }
 
-  lazy val expression: PackratParser[Expression] = timeIndicator | overConstant | alias |
-    failure("Invalid expression.")
+  // match recognize
+
+  lazy val patternVariableLiteral: PackratParser[Expression] = ident ^^ {
+    str => Literal(str)
+  }
+
+  lazy val patternPrimary: PackratParser[Expression] = "(" ~ pattern ~ ")" ^^ {
+    case _ ~ e ~ _ => e
+  } | patternVariableLiteral
+
+  lazy val patternQuantifier: PackratParser[Expression] = "*" ^^ {
+    _ => Quantifier(0, -1, isReluctant = false)
+  } | "*?" ^^ {
+    _ => Quantifier(0, -1, isReluctant = true)
+  } | "+" ^^ {
+    _ => Quantifier(1, -1, isReluctant = false)
+  } | "+?" ^^ {
+    _ => Quantifier(1, -1, isReluctant = true)
+  } | "?" ^^ {
+    _ => Quantifier(0, 1, isReluctant = false)
+  } | "??" ^^ {
+    _ => Quantifier(0, 1, isReluctant = true)
+  } | "{" ~ super.decimalNumber ~ "," ~ super.decimalNumber ~ "}" ^^ {
+    case _ ~ startNum ~ _ ~ endNum ~ _ =>
+      Quantifier(startNum.toInt, endNum.toInt, isReluctant = false)
+  } | "{" ~ super.decimalNumber ~ "," ~ super.decimalNumber ~ "}?" ^^ {
+    case _ ~ startNum ~ _ ~ endNum ~ _ =>
+      Quantifier(startNum.toInt, endNum.toInt, isReluctant = true)
+  } | "{" ~ super.decimalNumber ~ "," ~ "}" ^^ {
+    case _ ~ startNum ~ _ ~ _ =>
+      Quantifier(startNum.toInt, -1, isReluctant = false)
+  } | "{" ~ super.decimalNumber ~ "," ~ "}?" ^^ {
+    case _ ~ startNum ~ _ ~ _ =>
+      Quantifier(startNum.toInt, -1, isReluctant = true)
+  } | "{" ~ "," ~ super.decimalNumber ~ "}" ^^ {
+    case _ ~ _ ~ endNum ~ _ =>
+      Quantifier(-1, endNum.toInt, isReluctant = false)
+  } | "{" ~ "," ~ super.decimalNumber ~ "}?" ^^ {
+    case _ ~ _ ~ endNum ~ _ =>
+      Quantifier(-1, endNum.toInt, isReluctant = true)
+  }
+
+  lazy val patternFactor: PackratParser[Expression] = patternPrimary ~ patternQuantifier ^^ {
+    case l ~ r => PatternQuantifier(l, r)
+  } | patternPrimary
+
+  lazy val patternWithoutParen: PackratParser[Expression] =
+    patternWithoutParen ~ patternFactor ^^ {
+      case l ~ r => PatternConcat(l, r)
+    } | patternWithoutParen ~ "|" ~ patternFactor ^^ {
+      case l ~ _ ~ f => PatternAlter(l, f)
+    } | patternFactor
+
+  lazy val pattern: PackratParser[Expression] = "(" ~ patternWithoutParen ~ ")" ^^ {
+    case _ ~ e ~ _ => e
+  }
+
+  lazy val patternDefination: PackratParser[Expression] =
+    patternVariableLiteral ~ AS ~ logic ^^ {
+      case name ~ _ ~ e => PatternDefination(name.toString, e)
+    }
+
+  lazy val measure: PackratParser[Expression] = logic ~ AS ~ ident ^^ {
+    case e ~ _ ~ name => Measure(name.toString, e)
+  }
+
+  lazy val after: PackratParser[Expression] =
+    "after" ~ "match" ~ "skip" ~ "to" ~ "next" ~ "row" ^^ {
+      _ => AfterMatch(AfterSymbol(1))
+    } | "after" ~ "match" ~ "skip" ~ "past" ~ "last" ~ "row" ^^ {
+      _ => AfterMatch(AfterSymbol(2))
+    } | "after" ~ "match" ~ "skip" ~ "to" ~ "first" ~> ident ^^ {
+      sym => AfterMatch(AfterSymbol(3, sym))
+    } | "after" ~ "match" ~ "skip" ~ "to" ~ "last" ~> ident ^^ {
+      sym => AfterMatch(AfterSymbol(4, sym))
+    }
+
+  lazy val matchRecognize: PackratParser[Expression] = patternDefination | measure | after | pattern
+
+  lazy val expression: PackratParser[Expression] = matchRecognize | timeIndicator | overConstant | alias |
+     failure("Invalid expression.")
 
   lazy val expressionList: Parser[List[Expression]] = rep1sep(expression, ",")
 

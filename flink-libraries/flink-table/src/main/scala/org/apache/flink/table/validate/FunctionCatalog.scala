@@ -264,7 +264,13 @@ object FunctionCatalog {
 
     // ordering
     "asc" -> classOf[Asc],
-    "desc" -> classOf[Desc]
+    "desc" -> classOf[Desc],
+
+    // match recognize
+    "first" -> classOf[First],
+    "last" -> classOf[Last],
+    "prev" -> classOf[Prev],
+    "next" -> classOf[Next]
   )
 
   /**
