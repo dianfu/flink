@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions
 import org.apache.calcite.avatica.util.DateTimeUtils.{MILLIS_PER_DAY, MILLIS_PER_HOUR, MILLIS_PER_MINUTE, MILLIS_PER_SECOND}
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
+import org.apache.flink.table.expressions.ExpressionParser.parseAll
 import org.apache.flink.table.expressions.ExpressionUtils.{toMilliInterval, toMonthInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions.TimePointUnit.TimePointUnit
@@ -548,9 +549,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case _ ~ e ~ _ => e
   }
 
-  lazy val patternDefination: PackratParser[Expression] =
+  lazy val patternDefinition: PackratParser[Expression] =
     patternVariableLiteral ~ AS ~ logic ^^ {
-      case name ~ _ ~ e => PatternDefination(name.toString, e)
+      case name ~ _ ~ e => PatternDefinition(name.toString, e)
     }
 
   lazy val measure: PackratParser[Expression] = logic ~ AS ~ ident ^^ {
@@ -568,9 +569,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
       sym => AfterMatch(AfterSymbol(4, sym))
     }
 
-  lazy val matchRecognize: PackratParser[Expression] = patternDefination | measure | after | pattern
+  lazy val matchRecognizeExpression: PackratParser[Expression] = patternDefinition | measure |
+    after | pattern | failure("Invalid expression.")
 
-  lazy val expression: PackratParser[Expression] = matchRecognize | timeIndicator | overConstant | alias |
+  lazy val matchRecognizeExpressionList: Parser[List[Expression]] =
+    rep1sep(matchRecognizeExpression, ",")
+
+  lazy val expression: PackratParser[Expression] = timeIndicator | overConstant | alias |
      failure("Invalid expression.")
 
   lazy val expressionList: Parser[List[Expression]] = rep1sep(expression, ",")
@@ -586,6 +591,24 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   def parseExpression(exprString: String): Expression = {
     parseAll(expression, exprString) match {
+      case Success(lst, _) => lst
+
+      case NoSuccess(msg, next) =>
+        throwError(msg, next)
+    }
+  }
+
+  def parseMatchRecognizeExpressionList(expression: String): List[Expression] = {
+    parseAll(matchRecognizeExpressionList, expression) match {
+      case Success(lst, _) => lst
+
+      case NoSuccess(msg, next) =>
+        throwError(msg, next)
+    }
+  }
+
+  def parseMatchRecognizeExpression(matchExprString: String): Expression = {
+    parseAll(matchRecognizeExpression, matchExprString) match {
       case Success(lst, _) => lst
 
       case NoSuccess(msg, next) =>

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.shaded.guava18.com.google.common.collect.Maps
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.{AfterMatch, AfterSymbol, Alias, Asc, Expression, ExpressionParser, Ordering, PatternDefination, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
+import org.apache.flink.table.expressions.{AfterMatch, AfterSymbol, Alias, Asc, Expression, ExpressionParser, Ordering, PatternDefinition, UnresolvedAlias, UnresolvedFieldReference, WindowProperty}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.MatchRecognizeTranslator._
 import org.apache.flink.table.plan.ProjectionTranslator._
@@ -1105,19 +1105,20 @@ class MatchRecognizeTable(private[flink] val table: Table) {
   }
 
   def pattern(ptn: String): MatchRecognizeTable = {
-    pattern(ExpressionParser.parseExpression(ptn))
+    pattern(ExpressionParser.parseMatchRecognizeExpression(ptn))
   }
 
   def define(patternDefinitions: Expression*): MatchRecognizeTable = {
     patternDefinitions.foreach(e => {
-      val p = e.asInstanceOf[PatternDefination]
+      val p = e.asInstanceOf[PatternDefinition]
       this.patternDefinitions += (p.name -> p.child)
     })
     this
   }
 
   def define(patternDefinitions: String): MatchRecognizeTable = {
-    val patternDefinitionExprs = ExpressionParser.parseExpressionList(patternDefinitions)
+    val patternDefinitionExprs =
+      ExpressionParser.parseMatchRecognizeExpressionList(patternDefinitions)
     define(patternDefinitionExprs: _*)
   }
 
@@ -1127,7 +1128,7 @@ class MatchRecognizeTable(private[flink] val table: Table) {
   }
 
   def measures(fields: String): MatchRecognizeTable = {
-    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    val fieldExprs = ExpressionParser.parseMatchRecognizeExpressionList(fields)
     measures(fieldExprs: _*)
   }
 

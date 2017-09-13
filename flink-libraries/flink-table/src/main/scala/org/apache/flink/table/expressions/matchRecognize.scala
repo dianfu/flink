@@ -123,7 +123,7 @@ case class PatternFieldRef(pattern: String, fieldIndex: Int, fieldType: TypeInfo
   }
 }
 
-case class PatternDefination(name: String, child: Expression) extends UnaryExpression {
+case class PatternDefinition(name: String, child: Expression) extends UnaryExpression {
   override def toString = s"$name as $child"
 
   override private[flink] def resultType = null
