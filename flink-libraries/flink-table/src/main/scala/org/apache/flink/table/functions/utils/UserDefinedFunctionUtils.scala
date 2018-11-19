@@ -731,7 +731,8 @@ object UserDefinedFunctionUtils {
     // arrays
     (candidate.isArray && expected.isArray &&
       (candidate.getComponentType == expected.getComponentType ||
-        expected.getComponentType == classOf[Object]))
+        expected.getComponentType == classOf[Object])) ||
+    expected.isAssignableFrom(candidate)
 
   /**
     * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.
