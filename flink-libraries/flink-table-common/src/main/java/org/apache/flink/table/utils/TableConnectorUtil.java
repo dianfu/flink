@@ -21,7 +21,7 @@ package org.apache.flink.table.utils;
 /**
   * Utils for table sources and sinks.
   */
-public class TableConnectorUtil {
+public final class TableConnectorUtil {
 
 	/**
 	 * Returns the table connector name used for log and web UI.

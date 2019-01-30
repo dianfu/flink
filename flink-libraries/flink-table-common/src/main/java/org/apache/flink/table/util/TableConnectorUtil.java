@@ -16,14 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.util;
 
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+/**
+ * Utils for table sources and sinks.
+ *
+ * @deprecated Use {@link org.apache.flink.table.utils.TableConnectorUtil} instead.
+ */
+@Deprecated
+public final class TableConnectorUtil {
 
-class DataSetTable[T](
-    val dataSet: DataSet[T],
-    override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.of(new TableStats(1000L)))
-  extends InlineTable[T](dataSet.getType, fieldIndexes, fieldNames, statistic)
+	/**
+	 * Returns the table connector name used for log and web UI.
+	 */
+	public static String generateRuntimeName(Class<?> clazz, String[] fields) {
+		return org.apache.flink.table.utils.TableConnectorUtil.generateRuntimeName(clazz, fields);
+	}
+}

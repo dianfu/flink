@@ -16,15 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.stats
+package org.apache.flink.table.descriptors;
 
-import java.lang.Long
-import java.util.{Map, HashMap}
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
-  * Table statistics
-  *
-  * @param rowCount cardinality of table
-  * @param colStats statistics of table columns
-  */
-case class TableStats(rowCount: Long, colStats: Map[String, ColumnStats] = new HashMap())
+ * Common class for all descriptors describing table sources and sinks.
+ */
+@PublicEvolving
+public abstract class TableDescriptor extends DescriptorBase {
+}
