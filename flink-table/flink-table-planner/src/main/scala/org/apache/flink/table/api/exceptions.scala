@@ -46,23 +46,6 @@ case class SqlParserException(
 case class UnresolvedException(msg: String) extends RuntimeException(msg)
 
 /**
-  * Exception for an operation on a nonexistent table
-  *
-  * @param catalog    catalog name
-  * @param table      table name
-  * @param cause      the cause
-  */
-case class TableNotExistException(
-    catalog: String,
-    table: String,
-    cause: Throwable)
-    extends RuntimeException(s"Table $catalog.$table does not exist.", cause) {
-
-  def this(catalog: String, table: String) = this(catalog, table, null)
-
-}
-
-/**
   * Exception for adding an already existent table
   *
   * @param catalog    catalog name
@@ -77,20 +60,6 @@ case class TableAlreadyExistException(
 
   def this(catalog: String, table: String) = this(catalog, table, null)
 
-}
-
-/**
-  * Exception for operation on a nonexistent catalog
-  *
-  * @param catalog catalog name
-  * @param cause the cause
-  */
-case class CatalogNotExistException(
-    catalog: String,
-    cause: Throwable)
-    extends RuntimeException(s"Catalog $catalog does not exist.", cause) {
-
-  def this(catalog: String) = this(catalog, null)
 }
 
 /**

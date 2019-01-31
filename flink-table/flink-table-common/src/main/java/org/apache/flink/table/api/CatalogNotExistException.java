@@ -16,9 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.api;
 
 /**
-  * Common class for all descriptors describing table sources and sinks.
-  */
-abstract class TableDescriptor extends DescriptorBase
+ * Exception for operation on a nonexistent catalog.
+ */
+public class CatalogNotExistException extends RuntimeException {
+
+	/**
+	 * @param catalog catalog name
+	 */
+	public CatalogNotExistException(String catalog) {
+		this(catalog, null);
+	}
+
+	/**
+	 * @param catalog catalog name
+	 * @param cause   the cause
+	 */
+	public CatalogNotExistException(String catalog, Throwable cause) {
+		super("Catalog " + catalog + " does not exist.", cause);
+	}
+}

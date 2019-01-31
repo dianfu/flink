@@ -16,14 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.api;
 
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+/**
+ * Exception for an operation on a nonexistent table.
+ */
+public class TableNotExistException extends RuntimeException {
 
-class DataSetTable[T](
-    val dataSet: DataSet[T],
-    override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.of(new TableStats(1000L)))
-  extends InlineTable[T](dataSet.getType, fieldIndexes, fieldNames, statistic)
+	/**
+	 * @param catalog catalog name
+	 * @param table   table name
+	 */
+	public TableNotExistException(String catalog, String table) {
+		this(catalog, table, null);
+	}
+
+	/**
+	 * @param catalog catalog name
+	 * @param table   table name
+	 * @param cause   the cause
+	 */
+	public TableNotExistException(String catalog, String table, Throwable cause) {
+		super("Table " + catalog + "." + table + " does not exist.", cause);
+	}
+}

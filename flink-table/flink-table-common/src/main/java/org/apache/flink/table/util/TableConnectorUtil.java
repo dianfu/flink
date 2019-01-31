@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.util;
 
 /**
-  * A trait for descriptors that allow to define a format and schema.
-  */
-trait SchematicDescriptor[D <: SchematicDescriptor[D]] extends Descriptor {
+ * Utils for table sources and sinks.
+ *
+ * @deprecated Use {@link org.apache.flink.table.utils.TableConnectorUtil} instead.
+ */
+@Deprecated
+public final class TableConnectorUtil {
 
-  /**
-    * Specifies the format that defines how to read data from a connector.
-    */
-  def withFormat(format: FormatDescriptor): D
-
-  /**
-    * Specifies the resulting table schema.
-    */
-  def withSchema(schema: Schema): D
+	/**
+	 * Returns the table connector name used for log and web UI.
+	 */
+	public static String generateRuntimeName(Class<?> clazz, String[] fields) {
+		return org.apache.flink.table.utils.TableConnectorUtil.generateRuntimeName(clazz, fields);
+	}
 }
