@@ -16,14 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.plan.stats;
 
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
+import java.util.HashMap;
+import java.util.Map;
 
-class DataSetTable[T](
-    val dataSet: DataSet[T],
-    override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String],
-    override val statistic: FlinkStatistic = FlinkStatistic.of(new TableStats(1000L)))
-  extends InlineTable[T](dataSet.getType, fieldIndexes, fieldNames, statistic)
+/**
+ * Table statistics.
+ */
+public final class TableStats {
+
+	/**
+	 * cardinality of table.
+	 */
+	private final long rowCount;
+
+	/**
+	 * colStats statistics of table columns.
+	 */
+	private final Map<String, ColumnStats> colStats;
+
+	public TableStats(long rowCount) {
+		this(rowCount, new HashMap<>());
+	}
+
+	public TableStats(long rowCount, Map<String, ColumnStats> colStats) {
+		this.rowCount = rowCount;
+		this.colStats = colStats;
+	}
+
+	public long getRowCount() {
+		return rowCount;
+	}
+
+	public Map<String, ColumnStats> getColStats() {
+		return colStats;
+	}
+}

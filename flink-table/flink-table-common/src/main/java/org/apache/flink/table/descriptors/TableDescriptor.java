@@ -16,20 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.util
+package org.apache.flink.table.descriptors;
+
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
-  * Utils for table sources and sinks.
-  */
-object TableConnectorUtil {
-
-  /** Returns the table connector name used for log and web UI */
-  def generateRuntimeName(clazz: Class[_], fields: Array[String]): String = {
-    val className = clazz.getSimpleName
-    if (null == fields) {
-      s"$className(*)"
-    } else {
-      s"$className(${fields.mkString(", ")})"
-    }
-  }
+ * Common class for all descriptors describing table sources and sinks.
+ */
+@PublicEvolving
+public abstract class TableDescriptor extends DescriptorBase {
 }

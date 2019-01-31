@@ -160,7 +160,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 					.field(FRUIT_NAME, Types.STRING()).from(NAME)
 					.field(COUNT, Types.DECIMAL()) // no from so it must match with the input
 					.field(EVENT_TIME, Types.SQL_TIMESTAMP()).rowtime(
-						new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending())
+						new Rowtime().timestampsFromField(TIME).watermarksPeriodicAscending().toProperties())
 					.field(PROC_TIME, Types.SQL_TIMESTAMP()).proctime())
 			.inAppendMode();
 

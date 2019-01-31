@@ -92,7 +92,6 @@ class SchemaValidator(
 }
 
 object SchemaValidator {
-
   /**
     * Prefix for schema-related properties.
     */

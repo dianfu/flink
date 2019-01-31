@@ -16,15 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.stats
+package org.apache.flink.table.descriptors;
 
-import java.lang.Long
-import java.util.{Map, HashMap}
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
-  * Table statistics
-  *
-  * @param rowCount cardinality of table
-  * @param colStats statistics of table columns
-  */
-case class TableStats(rowCount: Long, colStats: Map[String, ColumnStats] = new HashMap())
+ * A trait for descriptors that allow to define a format and schema.
+ */
+@PublicEvolving
+public interface SchematicDescriptor<D extends SchematicDescriptor<D>> extends Descriptor {
+
+	/**
+	 * Specifies the format that defines how to read data from a connector.
+	 */
+	D withFormat(FormatDescriptor format);
+
+	/**
+	 * Specifies the resulting table schema.
+	 */
+	D withSchema(Schema schema);
+}
