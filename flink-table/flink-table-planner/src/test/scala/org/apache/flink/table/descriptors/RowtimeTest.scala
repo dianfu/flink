@@ -53,15 +53,15 @@ class RowtimeTest extends DescriptorTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def descriptors(): util.List[Descriptor] = {
-    val desc1 = Rowtime()
+    val desc1 = new Rowtime()
       .timestampsFromField("otherField")
       .watermarksPeriodicBounded(1000L)
 
-    val desc2 = Rowtime()
+    val desc2 = new Rowtime()
       .timestampsFromSource()
       .watermarksFromStrategy(new CustomAssigner())
 
-    val desc3 = Rowtime()
+    val desc3 = new Rowtime()
       .timestampsFromExtractor(new CustomExtractor("tsField"))
       .watermarksPeriodicBounded(1000L)
 
@@ -69,7 +69,7 @@ class RowtimeTest extends DescriptorTestBase {
   }
 
   override def validator(): DescriptorValidator = {
-    new RowtimeValidator(supportsSourceTimestamps = true, supportsSourceWatermarks = false)
+    new RowtimeValidator(true, false)
   }
 
   override def properties(): util.List[util.Map[String, String]] = {
@@ -88,7 +88,7 @@ class RowtimeTest extends DescriptorTestBase {
         "B0b3JzLlJvd3RpbWVUZXN0JEN1c3RvbUFzc2lnbmVyeDcuDvfbu0kCAAB4cgBHb3JnLmFwYWNoZS5mbGluay" +
         "50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5QdW5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9A" +
         "IAAHhyAD1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cm" +
-        "F0ZWd5mB_uSxDZ8-MCAAB4cA")
+        "F0ZWd57RqMYVyVWhUCAAB4cA")
     )
 
     val props3 = Map(
@@ -97,7 +97,7 @@ class RowtimeTest extends DescriptorTestBase {
       "rowtime.timestamps.serialized" -> ("rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3" +
         "JzLlJvd3RpbWVUZXN0JEN1c3RvbUV4dHJhY3RvcvhQPUL66Ob9AgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cm" +
         "luZzt4cgA-b3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYW" +
-        "N0b3LU8E2thK4wMQIAAHhwdAAHdHNGaWVsZA"),
+        "N0b3LAhSf0XVRUUgIAAHhwdAAHdHNGaWVsZA"),
       "rowtime.watermarks.delay" -> "1000",
       "rowtime.timestamps.type" -> "custom",
       "rowtime.watermarks.type" -> "periodic-bounded"
