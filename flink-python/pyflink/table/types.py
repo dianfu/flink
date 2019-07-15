@@ -2005,7 +2005,7 @@ class Row(tuple):
             return "Row(%s)" % ", ".join("%s=%r" % (k, v)
                                          for k, v in zip(self._fields, tuple(self)))
         else:
-            return "<Row(%s)>" % ", ".join(self)
+            return "<Row(%s)>" % ", ".join("%r" % field for field in self)
 
 
 _acceptable_types = {
@@ -2247,6 +2247,11 @@ def _create_type_verifier(data_type, name=None):
             verify_value(obj)
 
     return verify
+
+
+# This is used to unpickle a Row from JVM
+def _create_row_inbound_converter(dataType):
+    return lambda *a: dataType.fromInternal(a)
 
 
 class DataTypes(object):

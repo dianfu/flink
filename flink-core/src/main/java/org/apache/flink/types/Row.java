@@ -167,4 +167,28 @@ public class Row implements Serializable{
 		}
 		return newRow;
 	}
+
+	public static Row join(Row first, Row... remainings) {
+		int newLength = first.fields.length;
+		for (Row remaining : remainings) {
+			newLength += remaining.fields.length;
+		}
+
+		final Row joinedRow = new Row(newLength);
+		int index = 0;
+
+		// copy the first row
+		for (int i = 0; i < first.fields.length; i++) {
+			joinedRow.fields[index++] = first.fields[i];
+		}
+
+		// copy the remaining rows
+		for (Row remaining : remainings) {
+			for (int i = 0; i < remaining.fields.length; i++) {
+				joinedRow.fields[index++] = remaining.fields[i];
+			}
+		}
+
+		return joinedRow;
+	}
 }

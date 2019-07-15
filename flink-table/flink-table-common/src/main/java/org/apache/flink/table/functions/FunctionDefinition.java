@@ -40,6 +40,10 @@ public interface FunctionDefinition {
 	 */
 	FunctionKind getKind();
 
+	default FunctionLanguage getLanguage() {
+		return FunctionLanguage.JAVA;
+	}
+
 	/**
 	 * Returns the set of requirements this definition demands.
 	 */
