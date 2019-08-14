@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.concurrent.ScheduledFuture;
@@ -71,6 +72,11 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 	 * A timer that finishes the current bundle after a fixed amount of time.
 	 */
 	private transient ScheduledFuture<?> checkFinishBundleTimer;
+
+	/**
+	 * Callback to be executed after the current bundle was finished.
+	 */
+	private transient Runnable bundleFinishedCallback;
 
 	public AbstractPythonFunctionOperator() {
 		// TODO: makes the max bundle size and max bundle time configurable.
@@ -138,6 +144,51 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		super.prepareSnapshotPreBarrier(checkpointId);
 	}
 
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		// Due to the asynchronous communication with the SDK harness,
+		// a bundle might still be in progress and not all items have
+		// yet been received from the SDK harness. If we just set this
+		// watermark as the new output watermark, we could violate the
+		// order of the records, i.e. pending items in the SDK harness
+		// could become "late" although they were "on time".
+		//
+		// We can solve this problem using one of the following options:
+		//
+		// 1) Finish the current bundle and emit this watermark as the
+		//    new output watermark. Finishing the bundle ensures that
+		//    all the items have been processed by the SDK harness and
+		//    the execution results sent to the downstream operator.
+		//
+		// 2) Hold on the output watermark for as long as the current
+		//    bundle has not been finished. We have to remember to manually
+		//    finish the bundle in case we receive the final watermark.
+		//    To avoid latency, we should process this watermark again as
+		//    soon as the current bundle is finished.
+		//
+		// Approach 1) is the easiest and gives better latency, yet 2)
+		// gives better throughput due to the bundle not getting cut on
+		// every watermark. So we have implemented 2) below.
+		//
+		if (mark == Watermark.MAX_WATERMARK) {
+			invokeFinishBundle();
+			super.processWatermark(mark);
+		} else {
+			// It is not safe to advance the output watermark yet, so add a hold on the current
+			// output watermark.
+			bundleFinishedCallback =
+				() -> {
+					try {
+						// at this point the bundle is finished, allow the watermark to pass
+						super.processWatermark(mark);
+					} catch (Exception e) {
+						throw new RuntimeException(
+							"Failed to process watermark after finished bundle.", e);
+					}
+				};
+		}
+	}
+
 	public abstract PythonFunctionRunner<IN> createPythonFunctionRunner();
 
 	public abstract void emitResults();
@@ -178,6 +229,11 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			emitResults();
 			elementCount = 0;
 			lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+			// callback only after current bundle was fully finalized
+			if (bundleFinishedCallback != null) {
+				bundleFinishedCallback.run();
+				bundleFinishedCallback = null;
+			}
 		}
 	}
 }
