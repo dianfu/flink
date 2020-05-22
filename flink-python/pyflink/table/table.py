@@ -21,6 +21,7 @@ import warnings
 from py4j.java_gateway import get_method
 
 from pyflink.java_gateway import get_gateway
+from pyflink.table.expression import Expression, get_or_create_java_expression, get_java_expression
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
@@ -82,7 +83,14 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields), self._t_env)
+        if isinstance(fields, (list, tuple)):
+            gateway = get_gateway()
+            return Table(
+                self._j_table.select(
+                    to_jarray(gateway.jvm.Expression, [field._j_expr for field in fields])),
+                self._t_env)
+        else:
+            return Table(self._j_table.select(get_java_expression(fields)), self._t_env)
 
     def alias(self, field, *fields):
         """
@@ -226,7 +234,8 @@ class Table(object):
         if join_predicate is None:
             return Table(self._j_table.leftOuterJoin(right._j_table), self._t_env)
         else:
-            return Table(self._j_table.leftOuterJoin(right._j_table, join_predicate), self._t_env)
+            return Table(self._j_table.leftOuterJoin(
+                right._j_table, get_java_expression(join_predicate)), self._t_env)
 
     def right_outer_join(self, right, join_predicate):
         """
@@ -276,7 +285,8 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.fullOuterJoin(right._j_table, join_predicate), self._t_env)
+        return Table(self._j_table.fullOuterJoin(
+            right._j_table, get_java_expression(join_predicate)), self._t_env)
 
     def join_lateral(self, table_function_call, join_predicate=None):
         """
@@ -813,6 +823,14 @@ class Table(object):
         j_extra_details = to_j_explain_detail_arr(extra_details)
         return self._j_table.explain(j_extra_details)
 
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return Expression(self._j_table.operationTreeBuilder.resolveExpression(
+                get_or_create_java_expression(item),
+                self._j_table.operationTree))
+        else:
+            raise TypeError("unexpected item type: %s" % type(item))
+
     def __str__(self):
         return self._j_table.toString()
 
@@ -842,7 +860,14 @@ class GroupedTable(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields), self._t_env)
+        if isinstance(fields, (list, tuple)):
+            gateway = get_gateway()
+            return Table(
+                self._j_table.select(
+                    to_jarray(gateway.jvm.Expression, [field._j_expr for field in fields])),
+                self._t_env)
+        else:
+            return Table(self._j_table.select(get_java_expression(fields)), self._t_env)
 
 
 class GroupWindowedTable(object):
@@ -904,7 +929,14 @@ class WindowGroupedTable(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields), self._t_env)
+        if isinstance(fields, (list, tuple)):
+            gateway = get_gateway()
+            return Table(
+                self._j_table.select(
+                    to_jarray(gateway.jvm.Expression, [field._j_expr for field in fields])),
+                self._t_env)
+        else:
+            return Table(self._j_table.select(get_java_expression(fields)), self._t_env)
 
 
 class OverWindowedTable(object):
@@ -936,4 +968,11 @@ class OverWindowedTable(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.select(fields), self._t_env)
+        if isinstance(fields, (list, tuple)):
+            gateway = get_gateway()
+            return Table(
+                self._j_table.select(
+                    to_jarray(gateway.jvm.Expression, [field._j_expr for field in fields])),
+                self._t_env)
+        else:
+            return Table(self._j_table.select(get_java_expression(fields)), self._t_env)
