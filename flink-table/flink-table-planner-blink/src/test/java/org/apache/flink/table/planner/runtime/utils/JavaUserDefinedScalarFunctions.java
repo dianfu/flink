@@ -216,6 +216,10 @@ public class JavaUserDefinedScalarFunctions {
 			return i + j;
 		}
 
+		public int eval(int i) {
+			return i;
+		}
+
 		public String eval(String a) {
 			return a;
 		}

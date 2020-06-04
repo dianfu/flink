@@ -216,6 +216,30 @@ class PythonCalcSplitRuleTest extends TableTestBase {
   }
 
   @Test
+  def testSamePythonFunctionInProjectAndWhereClause(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+
+    val resultTable = table
+      .where(call("pyFunc1", $"a").isGreater(lit(0)))
+      .select(call("pyFunc1", $"a"))
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "a", "b", "pyFunc1(a, c) AS f0")
+      ),
+      term("select", "a", "b"),
+      term("where", "f0")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
   def testFieldNameUniquify(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Int, Int)]("MyTable", 'f0, 'f1, 'f2)

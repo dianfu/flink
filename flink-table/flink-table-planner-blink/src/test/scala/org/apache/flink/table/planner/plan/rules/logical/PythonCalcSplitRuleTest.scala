@@ -108,6 +108,12 @@ class PythonCalcSplitRuleTest extends TableTestBase {
   }
 
   @Test
+  def testSamePythonFunctionInProjectAndWhereClause(): Unit = {
+    val sqlQuery = "SELECT pyFunc1(a) FROM MyTable WHERE pyFunc1(a) > 0"
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
   def testFieldNameUniquify(): Unit = {
     util.addTableSource[(Int, Int, Int)]("MyTable2", 'f0, 'f1, 'f2)
     val sqlQuery = "SELECT pyFunc1(f1, f2), f0 + 1 FROM MyTable2"
