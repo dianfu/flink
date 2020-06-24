@@ -18,7 +18,7 @@
 
 import warnings
 
-from py4j.java_gateway import get_method
+from py4j.java_gateway import get_method, get_field
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, get_or_create_java_expression, get_java_expression
@@ -825,9 +825,13 @@ class Table(object):
 
     def __getitem__(self, item):
         if isinstance(item, str):
-            return Expression(self._j_table.operationTreeBuilder.resolveExpression(
+            f = self._j_table.getClass().getDeclaredField('operationTreeBuilder')
+            f.setAccessible(True)
+            gateway = get_gateway()
+            return Expression(f.get(self._j_table).resolveExpression(
                 get_or_create_java_expression(item),
-                self._j_table.operationTree))
+                to_jarray(gateway.jvm.org.apache.flink.table.operations.QueryOperation,
+                          [self._j_table.getQueryOperation()])))
         else:
             raise TypeError("unexpected item type: %s" % type(item))
 
