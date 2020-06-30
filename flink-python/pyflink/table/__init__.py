@@ -62,6 +62,7 @@ from __future__ import absolute_import
 
 from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.table.explain_detail import ExplainDetail
+from pyflink.table.expression import Expression
 from pyflink.table.module import Module
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.sinks import CsvTableSink, TableSink, WriteMode
@@ -85,6 +86,7 @@ __all__ = [
     'DataTypes',
     'EnvironmentSettings',
     'ExplainDetail',
+    'Expression',
     'FunctionContext',
     'GroupWindowedTable',
     'GroupedTable',

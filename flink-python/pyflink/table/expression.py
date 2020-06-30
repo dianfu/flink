@@ -18,6 +18,8 @@
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import to_jarray
 
+__all__ = ['Expression']
+
 
 def create_expression_from_column_name(name):
     gw = get_gateway()
