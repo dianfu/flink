@@ -57,3 +57,8 @@ def concat(first, *others):
     return Expression(gateway.Expressions.concat(
         get_java_expression(first),
         to_jarray(gateway.jvm.Object, [get_java_expression(other) for other in others])))
+
+
+def lit(v):
+    gateway = get_gateway()
+    return Expression(gateway.Expressions.lit(v))

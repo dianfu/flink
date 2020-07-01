@@ -145,7 +145,7 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.where(predicate), self._t_env)
+        return Table(self._j_table.where(get_java_expression(predicate)), self._t_env)
 
     def group_by(self, fields):
         """

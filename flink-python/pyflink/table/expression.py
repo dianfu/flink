@@ -69,6 +69,8 @@ class Expression(object):
 
     __add__ = _binary_op("add")
 
+    __or__ = _binary_op("or")
+
     def is_not_null(self):
         return _unary_op("isNotNull")(self)
 
