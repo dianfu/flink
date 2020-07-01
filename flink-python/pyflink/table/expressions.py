@@ -61,4 +61,4 @@ def concat(first, *others):
 
 def lit(v):
     gateway = get_gateway()
-    return Expression(gateway.Expressions.lit(v))
+    return Expression(gateway.jvm.Expressions.lit(v))

@@ -825,13 +825,8 @@ class Table(object):
 
     def __getitem__(self, item):
         if isinstance(item, str):
-            f = self._j_table.getClass().getDeclaredField('operationTreeBuilder')
-            f.setAccessible(True)
             gateway = get_gateway()
-            return Expression(f.get(self._j_table).resolveExpression(
-                get_or_create_java_expression(item),
-                to_jarray(gateway.jvm.org.apache.flink.table.operations.QueryOperation,
-                          [self._j_table.getQueryOperation()])))
+            return Expression(getattr(gateway.jvm.Expressions, '$')(item))
         else:
             raise TypeError("unexpected item type: %s" % type(item))
 
