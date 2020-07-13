@@ -83,6 +83,9 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
+        if isinstance(fields, Expression):
+            fields = (fields,)
+
         if isinstance(fields, (list, tuple)):
             gateway = get_gateway()
             return Table(
@@ -859,6 +862,9 @@ class GroupedTable(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
+        if isinstance(fields, Expression):
+            fields = (fields,)
+
         if isinstance(fields, (list, tuple)):
             gateway = get_gateway()
             return Table(
@@ -928,6 +934,9 @@ class WindowGroupedTable(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
+        if isinstance(fields, Expression):
+            fields = (fields,)
+
         if isinstance(fields, (list, tuple)):
             gateway = get_gateway()
             return Table(
@@ -967,6 +976,9 @@ class OverWindowedTable(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
+        if isinstance(fields, Expression):
+            fields = (fields,)
+
         if isinstance(fields, (list, tuple)):
             gateway = get_gateway()
             return Table(

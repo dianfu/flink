@@ -48,7 +48,7 @@ def if_then_else(condition, if_true, if_false):
     if not isinstance(condition, Expression):
         raise TypeError("condition should be an Expression")
     gateway = get_gateway()
-    return Expression(gateway.Expressions.ifThenElse(
+    return Expression(gateway.jvm.Expressions.ifThenElse(
         condition._j_expr, get_java_expression(if_true), get_java_expression(if_false)))
 
 
@@ -62,3 +62,10 @@ def concat(first, *others):
 def lit(v):
     gateway = get_gateway()
     return Expression(gateway.jvm.Expressions.lit(v))
+
+
+def call(f, *args):
+    gateway = get_gateway()
+    return Expression(gateway.jvm.Expressions.call(
+        f.java_user_defined_function(),
+        to_jarray(gateway.jvm.Object, [get_java_expression(arg) for arg in args])))
