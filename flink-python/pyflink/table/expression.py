@@ -76,6 +76,12 @@ class Expression(object):
     def is_not_null(self):
         return _unary_op("isNotNull")(self)
 
+    def is_not_true(self):
+        return _unary_op("isNotTrue")(self)
+
+    def is_not_false(self):
+        return _unary_op("isNotFalse")(self)
+
     def alias(self, alias, *extra_names):
         gateway = get_gateway()
         return Expression(getattr(self._j_expr, "as")(alias, to_jarray(
