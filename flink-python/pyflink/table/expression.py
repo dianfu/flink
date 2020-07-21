@@ -67,11 +67,17 @@ class Expression(object):
 
     __eq__ = _binary_op("isEqual")
 
-    __add__ = _binary_op("add")
-
     __and__ = _binary_op("and")
 
     __or__ = _binary_op("or")
+
+    __add__ = _binary_op("plus")
+
+    __sub__ = _binary_op("minus")
+
+    __mul__ = _binary_op("times")
+
+    __truediv__ = _binary_op("dividedBy")
 
     def is_not_null(self):
         return _unary_op("isNotNull")(self)
