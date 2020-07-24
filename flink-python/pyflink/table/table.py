@@ -113,8 +113,17 @@ class Table(object):
         :rtype: pyflink.table.Table
         """
         gateway = get_gateway()
-        extra_fields = to_jarray(gateway.jvm.String, fields)
-        return Table(get_method(self._j_table, "as")(field, extra_fields), self._t_env)
+        if isinstance(field, str):
+            extra_fields = to_jarray(gateway.jvm.String, fields)
+            return Table(get_method(self._j_table, "as")(field, extra_fields), self._t_env)
+        else:
+            if isinstance(field, Expression):
+                field = (field,)
+
+            assert isinstance(field, (list, tuple))
+            gateway = get_gateway()
+            field = to_jarray(gateway.jvm.Expression, [f._j_expr for f in field])
+            return Table(get_method(self._j_table, "as")(field), self._t_env)
 
     def filter(self, predicate):
         """

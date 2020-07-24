@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.java_gateway import get_gateway
+from pyflink.table.types import FloatType, DoubleType
 from pyflink.util.utils import to_jarray
 
 __all__ = ['Expression']
@@ -23,7 +24,7 @@ __all__ = ['Expression']
 
 def create_expression_from_column_name(name):
     gw = get_gateway()
-    return getattr(gw.jvm.Expressions, '$')(name)
+    return Expression(getattr(gw.jvm.Expressions, '$')(name))
 
 
 def get_java_expression(expr):
@@ -37,7 +38,7 @@ def get_or_create_java_expression(expr):
     if isinstance(expr, Expression):
         return expr._j_expr
     elif isinstance(expr, str):
-        return create_expression_from_column_name(expr)
+        return create_expression_from_column_name(expr)._j_expr
     else:
         raise TypeError(
             "Invalid argument: expected Expression or string, got {0}.".format(type(expr)))
@@ -95,3 +96,11 @@ class Expression(object):
 
     def then(self, if_true, if_false):
         return Expression(getattr(self._j_expr, "then")(if_true._j_expr, if_false._j_expr))
+
+    def cast(self, data_type):
+        gateway = get_gateway()
+        if isinstance(data_type, FloatType):
+            j_data_type = gateway.jvm.org.apache.flink.table.api.DataTypes.FLOAT()
+        elif isinstance(data_type, DoubleType):
+            j_data_type = gateway.jvm.org.apache.flink.table.api.DataTypes.DOUBLE()
+        return Expression(self._j_expr.cast(j_data_type))
