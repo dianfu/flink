@@ -17,6 +17,7 @@
 ################################################################################
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, get_or_create_java_expression, get_java_expression
+from pyflink.table.types import FloatType, DoubleType
 from pyflink.util.utils import to_jarray
 
 _expressions_over_column = {
@@ -59,9 +60,16 @@ def concat(first, *others):
         to_jarray(gateway.jvm.Object, [get_java_expression(other) for other in others])))
 
 
-def lit(v):
+def lit(v, data_type=None):
     gateway = get_gateway()
-    return Expression(gateway.jvm.Expressions.lit(v))
+    if data_type is None:
+        return Expression(gateway.jvm.Expressions.lit(v))
+    else:
+        if isinstance(data_type, FloatType):
+            j_data_type = gateway.jvm.org.apache.flink.table.api.DataTypes.FLOAT()
+        elif isinstance(data_type, DoubleType):
+            j_data_type = gateway.jvm.org.apache.flink.table.api.DataTypes.DOUBLE()
+        return Expression(gateway.jvm.Expressions.lit(v, j_data_type))
 
 
 def call(f, *args):

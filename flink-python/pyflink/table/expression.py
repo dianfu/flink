@@ -80,6 +80,9 @@ class Expression(object):
 
     __truediv__ = _binary_op("dividedBy")
 
+    def __str__(self):
+        return self._j_expr.asSummaryString()
+
     def is_not_null(self):
         return _unary_op("isNotNull")(self)
 
