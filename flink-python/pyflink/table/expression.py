@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import FloatType, DoubleType
+from pyflink.table.types import FloatType, DoubleType, BigIntType
 from pyflink.util.utils import to_jarray
 
 __all__ = ['Expression']
@@ -66,22 +66,31 @@ class Expression(object):
 
     __abs__ = _unary_op("abs")
 
+    # comparison operations
     __eq__ = _binary_op("isEqual")
+    __ne__ = _binary_op("isNotEqual")
+    __lt__ = _binary_op("isLess")
+    __gt__ = _binary_op("isGreater")
+    __le__ = _binary_op("isLessOrEqual")
+    __ge__ = _binary_op("isGreaterOrEqual")
 
+    # logic operations
     __and__ = _binary_op("and")
-
     __or__ = _binary_op("or")
 
+    # arithmetic operations
     __add__ = _binary_op("plus")
-
     __sub__ = _binary_op("minus")
-
     __mul__ = _binary_op("times")
-
     __truediv__ = _binary_op("dividedBy")
+    __mod__ = _binary_op("mod")
+    __pow__ = _binary_op("power")
 
     def __str__(self):
         return self._j_expr.asSummaryString()
+
+    def is_null(self):
+        return _unary_op("isNull")(self)
 
     def is_not_null(self):
         return _unary_op("isNotNull")(self)
@@ -102,8 +111,13 @@ class Expression(object):
 
     def cast(self, data_type):
         gateway = get_gateway()
-        if isinstance(data_type, FloatType):
+        if isinstance(data_type, BigIntType):
+            j_data_type = gateway.jvm.org.apache.flink.table.api.DataTypes.BIGINT()
+        elif isinstance(data_type, FloatType):
             j_data_type = gateway.jvm.org.apache.flink.table.api.DataTypes.FLOAT()
         elif isinstance(data_type, DoubleType):
             j_data_type = gateway.jvm.org.apache.flink.table.api.DataTypes.DOUBLE()
         return Expression(self._j_expr.cast(j_data_type))
+
+    def floor(self):
+        return Expression(self._j_expr.floor())

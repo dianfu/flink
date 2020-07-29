@@ -505,7 +505,17 @@ class Table(object):
         :return: The result table.
         :rtype: pyflink.table.Table
         """
-        return Table(self._j_table.orderBy(fields), self._t_env)
+        if isinstance(fields, Expression):
+            fields = (fields,)
+
+        if isinstance(fields, (list, tuple)):
+            gateway = get_gateway()
+            return Table(
+                self._j_table.orderBy(
+                    to_jarray(gateway.jvm.Expression, [field._j_expr for field in fields])),
+                self._t_env)
+        else:
+            return Table(self._j_table.orderBy(fields), self._t_env)
 
     def offset(self, offset):
         """
