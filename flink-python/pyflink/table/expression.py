@@ -121,3 +121,9 @@ class Expression(object):
 
     def floor(self):
         return Expression(self._j_expr.floor())
+
+    def asc(self):
+        return Expression(self._j_expr.asc())
+
+    def desc(self):
+        return Expression(self._j_expr.desc())
