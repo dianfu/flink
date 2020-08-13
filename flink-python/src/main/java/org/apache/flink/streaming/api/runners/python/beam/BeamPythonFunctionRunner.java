@@ -68,6 +68,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 	private static final String MANAGED_MEMORY_RESOURCE_ID = "python-process-managed-memory";
 
+	private static final String PYTHON_WORKER_MEMORY_LIMIT = "_PYTHON_WORKER_MEMORY_LIMIT";
+
 	private final String taskName;
 
 	/**
@@ -169,7 +171,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 		if (memoryManager != null) {
 			final LongFunctionWithException<PythonSharedResources, Exception> initializer = (size) ->
-				new PythonSharedResources(createJobBundleFactory(pipelineOptions), createPythonExecutionEnvironment());
+				new PythonSharedResources(createJobBundleFactory(pipelineOptions), createPythonExecutionEnvironment(size));
 
 			sharedResources =
 				memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, initializer);
@@ -182,7 +184,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			// there is no way to access the MemoryManager for the batch job of old planner,
 			// fallback to the old way in which it will spawn a Python process for each Python operator
 			jobBundleFactory = createJobBundleFactory(pipelineOptions);
-			stageBundleFactory = createStageBundleFactory(jobBundleFactory, createPythonExecutionEnvironment());
+			stageBundleFactory = createStageBundleFactory(jobBundleFactory, createPythonExecutionEnvironment(-1));
 		}
 
 		progressHandler = getProgressHandler(flinkMetricContainer);
@@ -244,12 +246,15 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 * Creates a specification which specifies the portability Python execution environment.
 	 * It's used by Beam's portability framework to creates the actual Python execution environment.
 	 */
-	private Environment createPythonExecutionEnvironment() throws Exception {
+	private Environment createPythonExecutionEnvironment(long memoryLimitBytes) throws Exception {
 		PythonEnvironment environment = environmentManager.createEnvironment();
 		if (environment instanceof ProcessPythonEnvironment) {
 			ProcessPythonEnvironment processEnvironment = (ProcessPythonEnvironment) environment;
 			Map<String, String> env = processEnvironment.getEnv();
 			env.putAll(jobOptions);
+			if (memoryLimitBytes > 0) {
+				env.put(PYTHON_WORKER_MEMORY_LIMIT, String.valueOf(memoryLimitBytes));
+			}
 			return Environments.createProcessEnvironment(
 				"",
 				"",
