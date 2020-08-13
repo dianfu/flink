@@ -25,10 +25,13 @@ import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -62,6 +65,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	private transient boolean bundleStarted;
 
 	private static final String MAIN_INPUT_ID = "input";
+
+	private static final String MANAGED_MEMORY_RESOURCE_ID = "python-process-managed-memory";
 
 	private final String taskName;
 
@@ -125,17 +130,27 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	@Nullable
 	private FlinkMetricContainer flinkMetricContainer;
 
+	@Nullable
+	private final MemoryManager memoryManager;
+
+	/**
+	 * The shared resource among Python operators of the same slot.
+	 */
+	private OpaqueMemoryResource<PythonSharedResources> sharedResources;
+
 	public BeamPythonFunctionRunner(
 		String taskName,
 		PythonEnvironmentManager environmentManager,
 		StateRequestHandler stateRequestHandler,
 		Map<String, String> jobOptions,
-		@Nullable FlinkMetricContainer flinkMetricContainer) {
+		@Nullable FlinkMetricContainer flinkMetricContainer,
+		@Nullable MemoryManager memoryManager) {
 		this.taskName = Preconditions.checkNotNull(taskName);
 		this.environmentManager = Preconditions.checkNotNull(environmentManager);
 		this.stateRequestHandler = Preconditions.checkNotNull(stateRequestHandler);
 		this.jobOptions = Preconditions.checkNotNull(jobOptions);
 		this.flinkMetricContainer = flinkMetricContainer;
+		this.memoryManager = memoryManager;
 		this.resultTuple = new Tuple2<>();
 	}
 
@@ -149,18 +164,40 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
 		PortablePipelineOptions portableOptions =
 			PipelineOptionsFactory.as(PortablePipelineOptions.class);
-		// one operator has one Python SDK harness
-		portableOptions.setSdkWorkerParallelism(1);
 
 		Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
 
-		jobBundleFactory = createJobBundleFactory(pipelineOptions);
-		stageBundleFactory = createStageBundleFactory();
+		if (memoryManager != null) {
+			final LongFunctionWithException<PythonSharedResources, Exception> initializer = (size) ->
+				new PythonSharedResources(createJobBundleFactory(pipelineOptions), createPythonExecutionEnvironment());
+
+			sharedResources =
+				memoryManager.getSharedMemoryResourceForManagedMemory(MANAGED_MEMORY_RESOURCE_ID, initializer);
+			LOG.info("Obtained shared Python process of size {} bytes", sharedResources.getSize());
+
+			JobBundleFactory jobBundleFactory = sharedResources.getResourceHandle().getJobBundleFactory();
+			Environment environment = sharedResources.getResourceHandle().getEnvironment();
+			stageBundleFactory = createStageBundleFactory(jobBundleFactory, environment);
+		} else {
+			// there is no way to access the MemoryManager for the batch job of old planner,
+			// fallback to the old way in which it will spawn a Python process for each Python operator
+			jobBundleFactory = createJobBundleFactory(pipelineOptions);
+			stageBundleFactory = createStageBundleFactory(jobBundleFactory, createPythonExecutionEnvironment());
+		}
+
 		progressHandler = getProgressHandler(flinkMetricContainer);
 	}
 
 	@Override
 	public void close() throws Exception {
+		try {
+			if (sharedResources != null) {
+				sharedResources.close();
+			}
+		} finally {
+			sharedResources = null;
+		}
+
 		try {
 			if (jobBundleFactory != null) {
 				jobBundleFactory.close();
@@ -207,7 +244,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 * Creates a specification which specifies the portability Python execution environment.
 	 * It's used by Beam's portability framework to creates the actual Python execution environment.
 	 */
-	protected RunnerApi.Environment createPythonExecutionEnvironment() throws Exception {
+	private Environment createPythonExecutionEnvironment() throws Exception {
 		PythonEnvironment environment = environmentManager.createEnvironment();
 		if (environment instanceof ProcessPythonEnvironment) {
 			ProcessPythonEnvironment processEnvironment = (ProcessPythonEnvironment) environment;
@@ -239,7 +276,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	 * and all the other information needed to execute them, such as the execution environment, the input
 	 * and output coder, etc.
 	 */
-	public abstract ExecutableStage createExecutableStage() throws Exception;
+	public abstract ExecutableStage createExecutableStage(Environment environment) throws Exception;
 
 	private void finishBundle() {
 		try {
@@ -288,9 +325,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 	/**
 	 * To make the error messages more user friendly, throws an exception with the boot logs.
 	 */
-	private StageBundleFactory createStageBundleFactory() throws Exception {
+	private StageBundleFactory createStageBundleFactory(JobBundleFactory jobBundleFactory, Environment environment) throws Exception {
 		try {
-			return jobBundleFactory.forStage(createExecutableStage());
+			return jobBundleFactory.forStage(createExecutableStage(environment));
 		} catch (Throwable e) {
 			throw new RuntimeException(environmentManager.getBootLog(), e);
 		}
@@ -305,5 +342,4 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			bundleStarted = true;
 		}
 	}
-
 }

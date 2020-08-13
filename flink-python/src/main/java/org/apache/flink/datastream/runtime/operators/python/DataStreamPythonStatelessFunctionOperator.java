@@ -124,7 +124,8 @@ public class DataStreamPythonStatelessFunctionOperator<IN, OUT> extends Abstract
 			getUserDefinedDataStreamFunctionsProto(),
 			coderUrn,
 			jobOptions,
-			getFlinkMetricContainer()
+			getFlinkMetricContainer(),
+			getContainingTask().getEnvironment().getMemoryManager()
 		);
 	}
 

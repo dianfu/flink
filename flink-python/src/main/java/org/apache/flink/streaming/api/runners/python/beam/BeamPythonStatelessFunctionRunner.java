@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.runners.python.beam;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -71,14 +72,15 @@ public abstract class BeamPythonStatelessFunctionRunner extends BeamPythonFuncti
 		PythonEnvironmentManager environmentManager,
 		String functionUrn,
 		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, environmentManager, StateRequestHandler.unsupported(), jobOptions, flinkMetricContainer);
+		FlinkMetricContainer flinkMetricContainer,
+		MemoryManager memoryManager) {
+		super(taskName, environmentManager, StateRequestHandler.unsupported(), jobOptions, flinkMetricContainer, memoryManager);
 		this.functionUrn = Preconditions.checkNotNull(functionUrn);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public ExecutableStage createExecutableStage() throws Exception {
+	public ExecutableStage createExecutableStage(RunnerApi.Environment environment) throws Exception {
 		RunnerApi.Components components =
 			RunnerApi.Components.newBuilder()
 				.putPcollections(
@@ -134,7 +136,7 @@ public abstract class BeamPythonStatelessFunctionRunner extends BeamPythonFuncti
 			Collections.singletonList(
 				PipelineNode.pCollection(OUTPUT_ID, components.getPcollectionsOrThrow(OUTPUT_ID)));
 		return ImmutableExecutableStage.of(
-			components, createPythonExecutionEnvironment(), input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
+			components, environment, input, sideInputs, userStates, timers, transforms, outputs, createValueOnlyWireCoderSetting());
 	}
 
 	private RunnerApi.WireCoderSetting createValueOnlyWireCoderSetting() throws IOException {

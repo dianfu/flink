@@ -50,7 +50,7 @@ public class PassThroughPythonTableFunctionRunner extends BeamTablePythonStatele
 		FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
 		String coderUrn, Map<String, String> jobOptions,
 		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions, coderUrn, jobOptions, flinkMetricContainer);
+		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions, coderUrn, jobOptions, flinkMetricContainer, null);
 		this.buffer = new LinkedList<>();
 	}
 

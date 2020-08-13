@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonStatelessFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -52,8 +53,9 @@ public class BeamTablePythonStatelessFunctionRunner extends BeamPythonStatelessF
 		FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
 		String coderUrn,
 		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer);
+		FlinkMetricContainer flinkMetricContainer,
+		MemoryManager memoryManager) {
+		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer, memoryManager);
 		this.coderUrn = Preconditions.checkNotNull(coderUrn);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);

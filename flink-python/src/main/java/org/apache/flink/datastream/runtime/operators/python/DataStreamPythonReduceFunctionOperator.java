@@ -116,7 +116,8 @@ public class DataStreamPythonReduceFunctionOperator<OUT>
 			getUserDefinedDataStreamFunctionsProto(),
 			DATA_STREAM_MAP_FUNCTION_CODER_URN,  // reuse map function coder
 			jobOptions,
-			getFlinkMetricContainer()
+			getFlinkMetricContainer(),
+			getContainingTask().getEnvironment().getMemoryManager()
 		);
 	}
 }

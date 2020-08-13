@@ -160,7 +160,8 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 			getUserDefinedFunctionsProto(),
 			getInputOutputCoderUrn(),
 			jobOptions,
-			getFlinkMetricContainer());
+			getFlinkMetricContainer(),
+			getContainingTask().getEnvironment().getMemoryManager());
 	}
 
 	protected FlinkFnApi.UserDefinedFunction getUserDefinedFunctionProto(PythonFunctionInfo pythonFunctionInfo) {

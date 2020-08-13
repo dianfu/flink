@@ -23,6 +23,7 @@ import org.apache.flink.datastream.runtime.typeutils.python.PythonTypeUtils;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
+import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonStatelessFunctionRunner;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -36,7 +37,6 @@ import java.util.Map;
  * defined python function.
  */
 public class BeamDataStreamPythonStatelessFunctionRunner extends BeamPythonStatelessFunctionRunner {
-	private static final long serialVersionUID = 1L;
 
 	private final TypeInformation inputType;
 	private final TypeInformation outputTupe;
@@ -52,8 +52,9 @@ public class BeamDataStreamPythonStatelessFunctionRunner extends BeamPythonState
 		FlinkFnApi.UserDefinedDataStreamFunctions userDefinedDataStreamFunctions,
 		String coderUrn,
 		Map<String, String> jobOptions,
-		@Nullable FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer);
+		@Nullable FlinkMetricContainer flinkMetricContainer,
+		MemoryManager memoryManager) {
+		super(taskName, environmentManager, functionUrn, jobOptions, flinkMetricContainer, memoryManager);
 		this.inputType = inputType;
 		this.outputTupe = outputType;
 		this.userDefinedDataStreamFunctions = userDefinedDataStreamFunctions;
