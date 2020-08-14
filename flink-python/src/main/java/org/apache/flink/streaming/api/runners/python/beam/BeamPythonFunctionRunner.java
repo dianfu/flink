@@ -252,9 +252,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			ProcessPythonEnvironment processEnvironment = (ProcessPythonEnvironment) environment;
 			Map<String, String> env = processEnvironment.getEnv();
 			env.putAll(jobOptions);
-			if (memoryLimitBytes > 0) {
-				env.put(PYTHON_WORKER_MEMORY_LIMIT, String.valueOf(memoryLimitBytes));
-			}
+			env.put(PYTHON_WORKER_MEMORY_LIMIT, String.valueOf(memoryLimitBytes));
 			return Environments.createProcessEnvironment(
 				"",
 				"",

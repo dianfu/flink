@@ -42,15 +42,13 @@ def set_memory_limit():
     memory_limit = int(os.environ.get('_PYTHON_WORKER_MEMORY_LIMIT', "-1"))
     if memory_limit > 0 and has_resource_module:
         try:
-            (soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_AS)
-            logging.info("Current memory limit: (%s, %s)" % (soft_limit, hard_limit))
+            (soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_RSS)
 
             # hard limit can only be lowered, but not raised
             if soft_limit == resource.RLIM_INFINITY or memory_limit < hard_limit:
                 logging.info("Setting memory limit to (%s, %s)" % (memory_limit, memory_limit))
-                resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+                resource.setrlimit(resource.RLIMIT_RSS, (memory_limit, memory_limit))
         except Exception as e:
-            # not all the systems support limiting the resource, so warning instead of failing
             logging.warning("Failed to set memory limit: %s", e)
 
 
