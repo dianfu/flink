@@ -182,7 +182,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 			stageBundleFactory = createStageBundleFactory(jobBundleFactory, environment);
 		} else {
 			// there is no way to access the MemoryManager for the batch job of old planner,
-			// fallback to the old way in which it will spawn a Python process for each Python operator
+			// fallback to the way that spawning a Python process for each Python operator
 			jobBundleFactory = createJobBundleFactory(pipelineOptions);
 			stageBundleFactory = createStageBundleFactory(jobBundleFactory, createPythonExecutionEnvironment(-1));
 		}
