@@ -272,8 +272,6 @@ if [[ "${EXPECTED_MSG[*]}" != "${SORTED_READ_MSG[*]}" ]]; then
     exit 1
 fi
 
-stop_cluster
-
 # These tests are known to fail on JDK11. See FLINK-13719
 if [[ ${PROFILE} != *"jdk11"* ]]; then
     cd "${CURRENT_DIR}/../"
