@@ -29,6 +29,18 @@ from pyflink.util.utils import load_java_class, to_jarray
 from py4j.java_gateway import java_import
 
 
+__all__ = [
+    'FlinkKafkaConsumer',
+    'FlinkKafkaProducer',
+    'JdbcSink',
+    'JdbcConnectionOptions',
+    'JdbcExecutionOptions',
+    'RollingPolicy',
+    'DefaultRollingPolicy',
+    'StreamingFileSink',
+    'OutputFileConfig']
+
+
 class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
     """
     Base class of all Flink Kafka Consumer data sources. This implements the common behavior across

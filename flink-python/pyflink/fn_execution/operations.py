@@ -22,8 +22,8 @@ from itertools import chain
 from apache_beam.coders import PickleCoder
 from typing import Tuple, Any
 
-from pyflink.datastream.functions import RuntimeContext, InternalProcessFunctionContext, \
-    TimerService, Collector, InternalProcessFunctionOnTimerContext
+from pyflink.datastream import TimeDomain
+from pyflink.datastream.functions import RuntimeContext, TimerService, Collector, ProcessFunction
 from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
@@ -353,10 +353,12 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
 
     def __init__(self, spec, keyed_state_backend):
         self._collector = ProcessFunctionOperation.InternalCollector()
-        internal_timer_service = ProcessFunctionOperation\
-            .InternalTimerService(self._collector, keyed_state_backend)
-        self.function_context = InternalProcessFunctionContext(internal_timer_service)
-        self.on_timer_ctx = InternalProcessFunctionOnTimerContext(internal_timer_service)
+        internal_timer_service = ProcessFunctionOperation.InternalTimerService(
+            self._collector, keyed_state_backend)
+        self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext(
+            internal_timer_service)
+        self.on_timer_ctx = ProcessFunctionOperation.InternalProcessFunctionOnTimerContext(
+            internal_timer_service)
         super(ProcessFunctionOperation, self).__init__(spec, keyed_state_backend)
 
     def generate_func(self, serialized_fn) -> tuple:
@@ -414,3 +416,29 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
 
         def current_watermark(self) -> int:
             return self._current_watermark
+
+    class InternalProcessFunctionContext(ProcessFunction.Context):
+        """
+        Internal implementation of ProcessFunction.Context.
+        """
+
+        def __init__(self, timer_service: 'TimerService'):
+            self._timer_service = timer_service
+
+        def timer_service(self):
+            return self._timer_service
+
+    class InternalProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext):
+        """
+        Internal implementation of ProcessFunction.OnTimerContext.
+        """
+
+        def __init__(self, timer_service: 'TimerService'):
+            self._timer_service = timer_service
+            self._time_domain = None
+
+        def timer_service(self):
+            return self._timer_service
+
+        def time_domain(self) -> TimeDomain:
+            return self._time_domain
