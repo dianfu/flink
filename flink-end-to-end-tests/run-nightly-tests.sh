@@ -84,6 +84,14 @@ printf "\n\n====================================================================
 printf "Running bash end-to-end tests\n"
 printf "==============================================================================\n"
 
+if [[ `uname -i` != 'aarch64' ]]; then
+    run_test "PyFlink end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink.sh" "skip_check_exceptions"
+fi
+# These tests are known to fail on JDK11. See FLINK-13719
+if [[ ${PROFILE} != *"jdk11"* ]] && [[ `uname -i` != 'aarch64' ]]; then
+    run_test "PyFlink YARN per-job on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
+fi
+
 ################################################################################
 # Checkpointing tests
 ################################################################################
@@ -224,14 +232,6 @@ run_test "ConnectedComponents iterations with high parallelism end-to-end test" 
 run_test "Dependency shading of table modules test" "$END_TO_END_DIR/test-scripts/test_table_shaded_dependencies.sh"
 
 run_test "Shaded Hadoop S3A with credentials provider end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_with_provider"
-
-if [[ `uname -i` != 'aarch64' ]]; then
-    run_test "PyFlink end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink.sh" "skip_check_exceptions"
-fi
-# These tests are known to fail on JDK11. See FLINK-13719
-if [[ ${PROFILE} != *"jdk11"* ]] && [[ `uname -i` != 'aarch64' ]]; then
-    run_test "PyFlink YARN per-job on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
-fi
 
 ################################################################################
 # Sticky Scheduling
