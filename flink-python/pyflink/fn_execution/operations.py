@@ -372,7 +372,7 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
         self._collector = ProcessFunctionOperation.InternalCollector()
         internal_timer_service = ProcessFunctionOperation.InternalTimerService(
             self._collector, keyed_state_backend)
-        self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext(
+        self.ctx = ProcessFunctionOperation.InternalProcessFunctionContext(
             internal_timer_service)
         self.on_timer_ctx = ProcessFunctionOperation.InternalProcessFunctionOnTimerContext(
             internal_timer_service)
@@ -380,8 +380,7 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
 
     def generate_func(self, serialized_fn) -> tuple:
         func, proc_func = operation_utils.extract_process_function(
-            serialized_fn, self.function_context, self.on_timer_ctx, self._collector,
-            self.keyed_state_backend)
+            serialized_fn, self.ctx, self.on_timer_ctx, self._collector, self.keyed_state_backend)
         return func, [proc_func]
 
     class InternalCollector(Collector):
@@ -434,6 +433,9 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
         def current_watermark(self) -> int:
             return self._current_watermark
 
+        def set_current_watermark(self, wm: int):
+            self._current_watermark = wm
+
     class InternalProcessFunctionContext(ProcessFunction.Context):
         """
         Internal implementation of ProcessFunction.Context.
@@ -448,6 +450,9 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
 
         def timestamp(self) -> int:
             return self._timestamp
+
+        def set_timestamp(self, ts: int):
+            self._timestamp = ts
 
     class InternalProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext):
         """
@@ -467,3 +472,9 @@ class ProcessFunctionOperation(StatefulFunctionOperation):
 
         def timestamp(self) -> int:
             return self._timestamp
+
+        def set_time_domain(self, td: TimeDomain):
+            self._time_domain = td
+
+        def set_timestamp(self, ts: int):
+            self._timestamp = ts

@@ -587,7 +587,7 @@ class ProcessFunction(Function):
         pass
 
     @abc.abstractmethod
-    def on_timer(self, timestamp, ctx: 'OnTimerContext', out: 'Collector'):
+    def on_timer(self, timestamp: int, ctx: 'OnTimerContext', out: 'Collector'):
         """
         Called when a timer set using TimerService fires.
 
