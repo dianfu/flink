@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.OneInputPythonFunctionOperator;
-import org.apache.flink.streaming.api.operators.python.PythonKeyedProcessFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.PythonKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.python.PythonPartitionCustomOperator;
 import org.apache.flink.streaming.api.operators.python.PythonTimestampsAndWatermarksOperator;
 import org.apache.flink.streaming.api.operators.python.TwoInputPythonFunctionOperator;
@@ -66,10 +66,7 @@ public class PythonConfigUtil {
 	 */
 	public static Configuration getEnvConfigWithDependencies(StreamExecutionEnvironment env) throws InvocationTargetException,
 		IllegalAccessException, NoSuchMethodException {
-		Configuration envConfiguration = getEnvironmentConfig(env);
-		Configuration config = PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(),
-			envConfiguration);
-		return config;
+		return PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), getEnvironmentConfig(env));
 	}
 
 	/**
@@ -84,7 +81,7 @@ public class PythonConfigUtil {
 				getConfigurationMethod = clz.getDeclaredMethod("getConfiguration");
 				break;
 			} catch (NoSuchMethodException e) {
-
+				// ignore
 			}
 		}
 
@@ -93,8 +90,7 @@ public class PythonConfigUtil {
 		}
 
 		getConfigurationMethod.setAccessible(true);
-		Configuration envConfiguration = (Configuration) getConfigurationMethod.invoke(env);
-		return envConfiguration;
+		return (Configuration) getConfigurationMethod.invoke(env);
 	}
 
 	/**
@@ -140,8 +136,7 @@ public class PythonConfigUtil {
 
 		boolean executedInBatchMode = isExecuteInBatchMode(env, mergedConfig);
 		if (executedInBatchMode) {
-			throw new UnsupportedOperationException("Running jobs in Batch mode is not supported in" +
-				" Python DataStream.");
+			throw new UnsupportedOperationException("Batch mode is still not supported in Python DataStream API.");
 		}
 
 		if (mergedConfig.getBoolean(PythonOptions.USE_MANAGED_MEMORY)) {
@@ -161,22 +156,18 @@ public class PythonConfigUtil {
 		StreamGraph streamGraph = env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, clearTransformations);
 		Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
 		for (StreamNode streamNode : streamNodes) {
-
 			alignStreamNode(streamNode, streamGraph);
-
 			StreamOperatorFactory streamOperatorFactory = streamNode.getOperatorFactory();
 			if (streamOperatorFactory instanceof SimpleOperatorFactory) {
 				StreamOperator streamOperator = ((SimpleOperatorFactory) streamOperatorFactory).getOperator();
 				if ((streamOperator instanceof OneInputPythonFunctionOperator) ||
 					(streamOperator instanceof TwoInputPythonFunctionOperator) ||
-					(streamOperator instanceof PythonKeyedProcessFunctionOperator)) {
-					AbstractPythonFunctionOperator abstractPythonFunctionOperator =
+					(streamOperator instanceof PythonKeyedProcessOperator)) {
+					AbstractPythonFunctionOperator pythonFunctionOperator =
 						(AbstractPythonFunctionOperator) streamOperator;
 
-					Configuration oldConfig = abstractPythonFunctionOperator.getPythonConfig()
-						.getMergedConfig();
-					abstractPythonFunctionOperator.setPythonConfig(generateNewPythonConfig(oldConfig,
-						mergedConfig));
+					Configuration oldConfig = pythonFunctionOperator.getPythonConfig().getMergedConfig();
+					pythonFunctionOperator.setPythonConfig(generateNewPythonConfig(oldConfig, mergedConfig));
 
 					if (streamOperator instanceof PythonTimestampsAndWatermarksOperator) {
 						((PythonTimestampsAndWatermarksOperator) streamOperator)
@@ -206,10 +197,10 @@ public class PythonConfigUtil {
 			if (streamOperatorFactory instanceof SimpleOperatorFactory) {
 				StreamOperator streamOperator = ((SimpleOperatorFactory) streamOperatorFactory).getOperator();
 				if (streamOperator instanceof PythonPartitionCustomOperator) {
-					PythonPartitionCustomOperator paritionCustomFunctionOperator =
+					PythonPartitionCustomOperator partitionCustomFunctionOperator =
 						(PythonPartitionCustomOperator) streamOperator;
 					// Update the numPartitions of PartitionCustomOperator after aligned all operators.
-					paritionCustomFunctionOperator.setNumPartitions(
+					partitionCustomFunctionOperator.setNumPartitions(
 						streamGraph.getStreamNode(streamNode.getOutEdges().get(0).getTargetId()).getParallelism());
 				}
 			}
@@ -237,8 +228,7 @@ public class PythonConfigUtil {
 			return executionMode == RuntimeExecutionMode.BATCH;
 		}
 
-		Field transformationsField = StreamExecutionEnvironment.class
-			.getDeclaredField("transformations");
+		Field transformationsField = StreamExecutionEnvironment.class.getDeclaredField("transformations");
 		transformationsField.setAccessible(true);
 		boolean existsUnboundedSource = false;
 		for (Transformation transform : (List<Transformation<?>>) transformationsField.get(env)) {
