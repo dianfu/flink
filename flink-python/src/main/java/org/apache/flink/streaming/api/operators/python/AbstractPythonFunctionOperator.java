@@ -319,6 +319,4 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 		return this.config.isMetricEnabled() ?
 			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
 	}
-
-
 }
