@@ -35,12 +35,10 @@ import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.lang.ref.Reference;
-import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
+
+import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
 
 /**
  * Base class for all stream operators to execute Python functions.
@@ -50,11 +48,6 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 	extends AbstractStreamOperator<OUT> {
 
 	private static final long serialVersionUID = 1L;
-
-	/**
-	 * For each classloader we only need to execute the cleanup method once.
-	 */
-	private static boolean leakedObjectsCleanupped = false;
 
 	/**
 	 * The {@link PythonFunctionRunner} which is responsible for Python user-defined function execution.
@@ -147,14 +140,15 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 	@Override
 	public void close() throws Exception {
 		try {
-			try {
-				cleanUpLeakingObjects();
-			} catch (Throwable e) {
-				LOG.error("Clear the leaking objects failed.", e);
-			}
 			invokeFinishBundle();
 		} finally {
 			super.close();
+
+			try {
+				cleanUpLeakingClasses(this.getClass().getClassLoader());
+			} catch (Throwable t) {
+				LOG.warn("Failed to clean up the leaking objects.", t);
+			}
 		}
 	}
 
@@ -326,40 +320,5 @@ public abstract class AbstractPythonFunctionOperator<OUT>
 			new FlinkMetricContainer(getRuntimeContext().getMetricGroup()) : null;
 	}
 
-	private static synchronized void cleanUpLeakingObjects() throws ReflectiveOperationException {
-		if (!leakedObjectsCleanupped) {
-			// clear the soft references.
-			// see https://bugs.openjdk.java.net/browse/JDK-8199589
-			Class<?> clazz = Class.forName("java.io.ObjectStreamClass$Caches");
-			clearCache(clazz, "localDescs");
-			clearCache(clazz, "reflectors");
-			// clear the finalizers created by last python job which uses another classloader.
-			System.gc();
-			leakedObjectsCleanupped = true;
-		}
-	}
 
-	private static void clearCache(Class<?> target, String mapName)
-		throws ReflectiveOperationException, SecurityException, ClassCastException {
-		Field f = target.getDeclaredField(mapName);
-		f.setAccessible(true);
-		Map<?, ?> map = (Map<?, ?>) f.get(null);
-		Iterator<?> keys = map.keySet().iterator();
-		while (keys.hasNext()) {
-			Object key = keys.next();
-			if (key instanceof Reference) {
-				Object clazz = ((Reference<?>) key).get();
-				if (clazz instanceof Class) {
-					ClassLoader cl = ((Class<?>) clazz).getClassLoader();
-					while (cl != null) {
-						if (cl == AbstractPythonFunctionOperator.class.getClassLoader()) {
-							keys.remove();
-							break;
-						}
-						cl = cl.getParent();
-					}
-				}
-			}
-		}
-	}
 }
