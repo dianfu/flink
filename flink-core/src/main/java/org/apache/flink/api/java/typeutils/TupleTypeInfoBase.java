@@ -82,6 +82,9 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		return types.length;
 	}
 
+	/**
+	 * Returns the field types.
+	 */
 	public TypeInformation<?>[] getFieldTypes() {
 		return types;
 	}
