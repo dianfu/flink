@@ -228,16 +228,18 @@ class PrimitiveArrayTypeInfo(WrapperTypeInfo, ABC):
             get_gateway().jvm.org.apache.flink.api.common.typeinfo
             .PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO)
 
-    @classmethod
-    def is_primitive_array_type_info(cls, type_info: TypeInformation):
-        return type_info in {cls.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO(),
-                             cls.BYTE_PRIMITIVE_ARRAY_TYPE_INFO(),
-                             cls.SHORT_PRIMITIVE_ARRAY_TYPE_INFO(),
-                             cls.INT_PRIMITIVE_ARRAY_TYPE_INFO(),
-                             cls.LONG_PRIMITIVE_ARRAY_TYPE_INFO(),
-                             cls.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO(),
-                             cls.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO(),
-                             cls.CHAR_PRIMITIVE_ARRAY_TYPE_INFO()}
+
+def is_primitive_array_type_info(type_info: TypeInformation):
+    return type_info in {
+        PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO(),
+        PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO()
+    }
 
 
 class BasicArrayTypeInfo(WrapperTypeInfo, ABC):
@@ -299,13 +301,19 @@ class BasicArrayTypeInfo(WrapperTypeInfo, ABC):
             get_gateway().jvm.org.apache.flink.api.common.typeinfo
             .BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO)
 
-    @classmethod
-    def is_basic_array_type_info(cls, type_info: TypeInformation):
-        return type_info in {cls.BOOLEAN_ARRAY_TYPE_INFO(), cls.BYTE_ARRAY_TYPE_INFO(),
-                             cls.SHORT_ARRAY_TYPE_INFO(), cls.INT_ARRAY_TYPE_INFO(),
-                             cls.LONG_ARRAY_TYPE_INFO(), cls.FLOAT_ARRAY_TYPE_INFO(),
-                             cls.DOUBLE_ARRAY_TYPE_INFO(), cls.CHAR_ARRAY_TYPE_INFO(),
-                             cls.STRING_ARRAY_TYPE_INFO()}
+
+def is_basic_array_type_info(type_info: TypeInformation):
+    return type_info in {
+        BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.SHORT_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.FLOAT_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO(),
+        BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO()
+    }
 
 
 class PickledBytesTypeInfo(WrapperTypeInfo, ABC):

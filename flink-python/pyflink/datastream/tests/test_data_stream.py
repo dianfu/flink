@@ -323,148 +323,67 @@ class DataStreamTests(PyFlinkTestCase):
         self.assertEqual(expected, results)
 
     def test_execute_and_collect(self):
-        collection = ['pyflink', 'datastream', 'execute', 'collect']
-        ds = self.env.from_collection(collection)
+        test_data = ['pyflink', 'datastream', 'execute', 'collect']
+        ds = self.env.from_collection(test_data)
 
-        expected = ['pyflink', 'datastream', 'execute', 'collect']
-
+        expected = test_data
         with ds.execute_and_collect() as result:
             results = []
             for i in result:
                 results.append(i)
             self.assertEqual(expected, results)
 
-        result = ds.execute_and_collect(limit=4)
+        expected = test_data[:3]
+        result = ds.execute_and_collect(limit=3)
         results = []
         for i in result:
             results.append(i)
         self.assertEqual(expected, results)
 
-        ds = self.env.from_collection(collection=collection, type_info=Types.STRING())
-
+        expected = test_data
+        ds = self.env.from_collection(collection=test_data, type_info=Types.STRING())
         with ds.execute_and_collect() as result:
             results = []
             for i in result:
                 results.append(i)
             self.assertEqual(expected, results)
 
-        result = ds.execute_and_collect(limit=4)
-        results = []
-        for i in result:
-            results.append(i)
-        self.assertEqual(expected, results)
-
-        collection = [['pyflink', 'datastream'], ['execute', 'collect']]
-        ds = self.env.from_collection(collection)
-
-        expected = [['pyflink', 'datastream'], ['execute', 'collect']]
-
+        test_data = [['pyflink', 'datastream'], ['execute', 'collect']]
+        expected = test_data
+        ds = self.env.from_collection(test_data)
         with ds.execute_and_collect() as result:
             results = []
             for i in result:
                 results.append(i)
             self.assertEqual(expected, results)
 
-        result = ds.execute_and_collect(limit=2)
-        results = []
-        for i in result:
-            results.append(i)
-        self.assertEqual(expected, results)
-
-        ds = self.env.from_collection(collection=collection,
-                                      type_info=Types.BASIC_ARRAY(Types.STRING()))
-
+        test_data = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
+                      bytearray(b'flink'), 'pyflink',
+                      datetime.date(2014, 9, 13),
+                      datetime.time(hour=12, minute=0, second=0, microsecond=123000),
+                      datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                      [1, 2, 3],
+                      [['pyflink', 'datastream'], ['execute', 'collect']],
+                      decimal.Decimal('1000000000000000000.05'),
+                      decimal.Decimal('1000000000000000000.0599999999999'
+                                      '9999899999999999')),
+                     (2, None, 2, True, 23878, 652516352, 9.87, 2.98936,
+                      bytearray(b'flink'), 'pyflink',
+                      datetime.date(2015, 10, 14),
+                      datetime.time(hour=11, minute=2, second=2, microsecond=234500),
+                      datetime.datetime(2020, 4, 15, 8, 2, 6, 235000),
+                      [2, 4, 6],
+                      [['pyflink', 'datastream'], ['execute', 'collect']],
+                      decimal.Decimal('2000000000000000000.74'),
+                      decimal.Decimal('2000000000000000000.061111111111111'
+                                      '11111111111111'))]
+        expected = test_data
+        ds = self.env.from_collection(test_data)
         with ds.execute_and_collect() as result:
             results = []
             for i in result:
                 results.append(i)
             self.assertEqual(expected, results)
-
-        result = ds.execute_and_collect(limit=2)
-        results = []
-        for i in result:
-            results.append(i)
-        self.assertEqual(expected, results)
-
-        collection = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
-                       bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
-                       datetime.time(hour=12, minute=0, second=0,
-                                     microsecond=123000),
-                       datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [1, 2, 3],
-                       decimal.Decimal('1000000000000000000.05'),
-                       decimal.Decimal('1000000000000000000.0599999999999'
-                                       '9999899999999999')),
-                      (2, None, 2, True, 23878, 652516352, 9.87, 2.98936,
-                       bytearray(b'flink'), 'pyflink', datetime.date(2015, 10, 14),
-                       datetime.time(hour=11, minute=2, second=2,
-                                     microsecond=234500),
-                       datetime.datetime(2020, 4, 15, 8, 2, 6, 235000), [2, 4, 6],
-                       decimal.Decimal('2000000000000000000.74'),
-                       decimal.Decimal('2000000000000000000.061111111111111'
-                                       '11111111111111'))]
-        ds = self.env.from_collection(collection)
-
-        expected = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
-                     bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
-                     datetime.time(hour=12, minute=0, second=0,
-                                   microsecond=123000),
-                     datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [1, 2, 3],
-                     decimal.Decimal('1000000000000000000.05'),
-                     decimal.Decimal('1000000000000000000.0599999999999'
-                                     '9999899999999999')),
-                    (2, None, 2, True, 23878, 652516352, 9.87, 2.98936,
-                     bytearray(b'flink'), 'pyflink', datetime.date(2015, 10, 14),
-                     datetime.time(hour=11, minute=2, second=2,
-                                   microsecond=234500),
-                     datetime.datetime(2020, 4, 15, 8, 2, 6, 235000), [2, 4, 6],
-                     decimal.Decimal('2000000000000000000.74'),
-                     decimal.Decimal('2000000000000000000.061111111111111'
-                                     '11111111111111'))]
-
-        with ds.execute_and_collect() as result:
-            results = []
-            for i in result:
-                results.append(i)
-            self.assertEqual(expected, results)
-
-        result = ds.execute_and_collect(limit=2)
-        results = []
-        for i in result:
-            results.append(i)
-        self.assertEqual(expected, results)
-
-        ds = self.env.from_collection(collection=collection, type_info=Types.ROW([
-            Types.LONG(), Types.LONG(), Types.SHORT(), Types.BOOLEAN(), Types.SHORT(),
-            Types.INT(), Types.FLOAT(), Types.DOUBLE(), Types.PICKLED_BYTE_ARRAY(),
-            Types.STRING(), Types.SQL_DATE(), Types.SQL_TIME(), Types.SQL_TIMESTAMP(),
-            Types.BASIC_ARRAY(Types.LONG()), Types.BIG_DEC(), Types.BIG_DEC()]))
-
-        expected = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
-                     bytearray(b'flink'), 'pyflink', datetime.date(2014, 9, 13),
-                     datetime.time(hour=12, minute=0, second=0),
-                     datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [1, 2, 3],
-                     decimal.Decimal('1000000000000000000.05'),
-                     decimal.Decimal('1000000000000000000.0599999999999'
-                                     '9999899999999999')),
-                    (2, None, 2, True, 23878, 652516352, 9.87, 2.98936,
-                     bytearray(b'flink'), 'pyflink', datetime.date(2015, 10, 14),
-                     datetime.time(hour=11, minute=2, second=2),
-                     datetime.datetime(2020, 4, 15, 8, 2, 6, 235000), [2, 4, 6],
-                     decimal.Decimal('2000000000000000000.74'),
-                     decimal.Decimal('2000000000000000000.061111111111111'
-                                     '11111111111111'))]
-
-        with ds.execute_and_collect() as result:
-            results = []
-            for i in result:
-                results.append(i)
-            self.assertEqual(expected, results)
-
-        result = ds.execute_and_collect(limit=2)
-        results = []
-        for i in result:
-            results.append(i)
-        self.assertEqual(expected, results)
 
     def test_key_by_map(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
