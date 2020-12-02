@@ -326,36 +326,19 @@ class DataStreamTests(PyFlinkTestCase):
         test_data = ['pyflink', 'datastream', 'execute', 'collect']
         ds = self.env.from_collection(test_data)
 
-        expected = test_data
-        with ds.execute_and_collect() as result:
-            results = []
-            for i in result:
-                results.append(i)
-            self.assertEqual(expected, results)
-
         expected = test_data[:3]
-        result = ds.execute_and_collect(limit=3)
-        results = []
-        for i in result:
-            results.append(i)
-        self.assertEqual(expected, results)
+        actual = []
+        for result in ds.execute_and_collect(limit=3):
+            actual.append(result)
+        self.assertEqual(expected, actual)
 
         expected = test_data
         ds = self.env.from_collection(collection=test_data, type_info=Types.STRING())
-        with ds.execute_and_collect() as result:
-            results = []
-            for i in result:
-                results.append(i)
-            self.assertEqual(expected, results)
-
-        test_data = [['pyflink', 'datastream'], ['execute', 'collect']]
-        expected = test_data
-        ds = self.env.from_collection(test_data)
-        with ds.execute_and_collect() as result:
-            results = []
-            for i in result:
-                results.append(i)
-            self.assertEqual(expected, results)
+        with ds.execute_and_collect() as results:
+            actual = []
+            for result in results:
+                actual.append(result)
+            self.assertEqual(expected, actual)
 
         test_data = [(1, None, 1, True, 32767, -2147483648, 1.23, 1.98932,
                       bytearray(b'flink'), 'pyflink',
@@ -379,11 +362,11 @@ class DataStreamTests(PyFlinkTestCase):
                                       '11111111111111'))]
         expected = test_data
         ds = self.env.from_collection(test_data)
-        with ds.execute_and_collect() as result:
-            results = []
-            for i in result:
-                results.append(i)
-            self.assertEqual(expected, results)
+        with ds.execute_and_collect() as results:
+            actual = []
+            for result in results:
+                actual.append(result)
+            self.assertEqual(expected, actual)
 
     def test_key_by_map(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
