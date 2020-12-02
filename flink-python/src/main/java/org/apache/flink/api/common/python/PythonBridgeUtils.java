@@ -250,21 +250,19 @@ public final class PythonBridgeUtils {
 			} else if (dataType instanceof MapType) {
 				List<List<Object>> serializedMapKV = new ArrayList<>(2);
 				MapType mapType = (MapType) dataType;
-				LogicalType keyType = mapType.getKeyType();
-				LogicalType valueType = mapType.getValueType();
-				List<Object> keyBytesList = new ArrayList<>();
-				List<Object> valueBytesList = new ArrayList<>();
 				Map<Object, Object> mapObj = (Map) obj;
+				List<Object> keyBytesList = new ArrayList<>(mapObj.size());
+				List<Object> valueBytesList = new ArrayList<>(mapObj.size());
 				for (Map.Entry entry : mapObj.entrySet()) {
-					keyBytesList.add(getPickledBytesFromJavaObject(entry.getKey(), keyType));
-					valueBytesList.add(getPickledBytesFromJavaObject(entry.getValue(), valueType));
+					keyBytesList.add(getPickledBytesFromJavaObject(entry.getKey(), mapType.getKeyType()));
+					valueBytesList.add(getPickledBytesFromJavaObject(entry.getValue(), mapType.getValueType()));
 				}
 				serializedMapKV.add(keyBytesList);
 				serializedMapKV.add(valueBytesList);
 				return pickler.dumps(serializedMapKV);
 			} else if (dataType instanceof ArrayType) {
-				List<Object> serializedElements = new ArrayList<>();
 				Object[] objects = (Object[]) obj;
+				List<Object> serializedElements = new ArrayList<>(objects.length);
 				ArrayType arrayType = (ArrayType) dataType;
 				LogicalType elementType = arrayType.getElementType();
 				for (Object object : objects) {
@@ -293,25 +291,21 @@ public final class PythonBridgeUtils {
 				} else if (sqlTimeTypeInfo == TIME) {
 					return pickler.dumps(((Time) obj).toLocalTime().toNanoOfDay() / 1000);
 				}
-			} else if (dataType instanceof RowTypeInfo ||
-				dataType instanceof TupleTypeInfo) {
-				TypeInformation<?>[] tmpFieldTypes = ((TupleTypeInfoBase<?>) dataType).getFieldTypes();
-				int arity = dataType instanceof RowTypeInfo ? ((Row) obj).getArity() :
-					((Tuple) obj).getArity();
+			} else if (dataType instanceof RowTypeInfo || dataType instanceof TupleTypeInfo) {
+				TypeInformation<?>[] fieldTypes = ((TupleTypeInfoBase<?>) dataType).getFieldTypes();
+				int arity = dataType instanceof RowTypeInfo ? ((Row) obj).getArity() : ((Tuple) obj).getArity();
 				List<Object> fieldBytes = new ArrayList<>(arity + 1);
 				if (dataType instanceof RowTypeInfo) {
 					fieldBytes.add(new byte[]{((Row) obj).getKind().toByteValue()});
 				}
 				for (int i = 0; i < arity; i++) {
-					Object field = dataType instanceof RowTypeInfo ? ((Row) obj).getField(i) :
-						((Tuple) obj).getField(i);
-					fieldBytes.add(getPickledBytesFromJavaObject(field, tmpFieldTypes[i]));
+					Object field = dataType instanceof RowTypeInfo ? ((Row) obj).getField(i) : ((Tuple) obj).getField(i);
+					fieldBytes.add(getPickledBytesFromJavaObject(field, fieldTypes[i]));
 				}
 				return fieldBytes;
-			} else if (dataType instanceof BasicArrayTypeInfo ||
-				dataType instanceof PrimitiveArrayTypeInfo) {
-				List<Object> serializedElements = new ArrayList<>();
+			} else if (dataType instanceof BasicArrayTypeInfo || dataType instanceof PrimitiveArrayTypeInfo) {
 				Object[] objects = (Object[]) obj;
+				List<Object> serializedElements = new ArrayList<>(objects.length);
 				TypeInformation<?> elementType = dataType instanceof BasicArrayTypeInfo ?
 					((BasicArrayTypeInfo<?, ?>) dataType).getComponentInfo() :
 					((PrimitiveArrayTypeInfo<?>) dataType).getComponentType();
@@ -320,8 +314,7 @@ public final class PythonBridgeUtils {
 				}
 				return pickler.dumps(serializedElements);
 			}
-			if (dataType instanceof BasicTypeInfo &&
-				BasicTypeInfo.getInfoFor(dataType.getTypeClass()) == FLOAT_TYPE_INFO) {
+			if (dataType instanceof BasicTypeInfo && BasicTypeInfo.getInfoFor(dataType.getTypeClass()) == FLOAT_TYPE_INFO) {
 				// Serialization of float type with pickler loses precision.
 				return pickler.dumps(String.valueOf(obj));
 			} else {
