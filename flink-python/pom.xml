@@ -95,7 +95,7 @@ under the License.
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.beam</groupId>
-					<artifactId>beam-vendor-bytebuddy-1_10_8</artifactId>
+					<artifactId>beam-vendor-bytebuddy-1_9_3</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
