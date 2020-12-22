@@ -110,10 +110,6 @@ public class PythonTypeUtils {
 					typeInformation.toString()));
 		}
 
-//		public static FlinkFnApi.TypeInfo toTypeInfoProto(FlinkFnApi.TypeInfo.FieldType fieldType) {
-//			return FlinkFnApi.TypeInfo.newBuilder().addField(FlinkFnApi.TypeInfo.Field.newBuilder().setType(fieldType).build()).build();
-//		}
-
 		private static FlinkFnApi.TypeInfo buildBasicTypeProto(BasicTypeInfo basicTypeInfo) {
 
 			FlinkFnApi.TypeInfo.TypeName typeName = null;
