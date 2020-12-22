@@ -307,10 +307,7 @@ message TypeInfo {
   }
 
   message TupleTypeInfo {
-    message Field {
-      TypeInfo field_type = 1;
-    }
-    repeated Field fields = 1;
+    repeated TypeInfo field_types = 1;
   }
 
   TypeName type_name = 1;

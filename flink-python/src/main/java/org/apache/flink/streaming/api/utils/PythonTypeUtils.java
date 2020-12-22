@@ -298,10 +298,7 @@ public class PythonTypeUtils {
 
 			int arity = tupleTypeInfo.getArity();
 			for (int index = 0; index < arity; index++) {
-				tupleTypeInfoBuilder.addFields(
-					FlinkFnApi.TypeInfo.TupleTypeInfo.Field.newBuilder()
-						.setFieldType(TypeInfoToProtoConverter.toTypeInfoProto(tupleTypeInfo.getTypeAt(index)))
-						.build());
+				tupleTypeInfoBuilder.addFieldTypes(TypeInfoToProtoConverter.toTypeInfoProto(tupleTypeInfo.getTypeAt(index)));
 			}
 			builder.setTupleTypeInfo(tupleTypeInfoBuilder.build());
 			return builder.build();

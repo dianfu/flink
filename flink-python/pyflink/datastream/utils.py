@@ -73,8 +73,8 @@ def pickled_bytes_to_python_converter(data, field_type):
                 elements.append(pickled_bytes_to_python_converter(element_bytes, element_type))
             return elements
         elif isinstance(field_type, MapTypeInfo):
-            key_type = field_type.key_type_info
-            value_type = field_type.value_type_info
+            key_type = field_type._key_type_info
+            value_type = field_type._value_type_info
             zip_kv = zip(data[0], data[1])
             return dict((pickled_bytes_to_python_converter(k, key_type),
                          pickled_bytes_to_python_converter(v, value_type))

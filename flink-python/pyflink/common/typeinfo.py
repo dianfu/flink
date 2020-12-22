@@ -310,63 +310,65 @@ class RowTypeInfo(TypeInformation):
     TypeInformation for Row.
     """
 
-    def __init__(self, types: List[TypeInformation], field_names: List[str] = None):
-        self.types = types
-        self.field_names = field_names
+    def __init__(self, field_types: List[TypeInformation], field_names: List[str] = None):
+        self._field_types = field_types
+        self._field_names = field_names
         self._need_conversion = [f.need_conversion() if isinstance(f, TypeInformation) else None
-                                 for f in self.types]
+                                 for f in self._field_types]
         self._need_serialize_any_field = any(self._need_conversion)
         super(RowTypeInfo, self).__init__()
 
     def get_field_names(self) -> List[str]:
-        if not self.field_names:
+        if not self._field_names:
             j_field_names = self.get_java_type_info().getFieldNames()
-            self.field_names = [name for name in j_field_names]
-        return self.field_names
+            self._field_names = [name for name in j_field_names]
+        return self._field_names
 
     def get_field_index(self, field_name: str) -> int:
-        if self.field_names:
-            return self.field_names.index(field_name)
+        if self._field_names:
+            return self._field_names.index(field_name)
         return -1
 
     def get_field_types(self) -> List[TypeInformation]:
-        return self.types
+        return self._field_types
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
             j_types_array = get_gateway()\
                 .new_array(get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation,
-                           len(self.types))
-            for i in range(len(self.types)):
-                field_type = self.types[i]
+                           len(self._field_types))
+            for i in range(len(self._field_types)):
+                field_type = self._field_types[i]
                 if isinstance(field_type, TypeInformation):
                     j_types_array[i] = field_type.get_java_type_info()
 
-            if self.field_names is None:
+            if self._field_names is None:
                 self._j_typeinfo = get_gateway().jvm\
                     .org.apache.flink.api.java.typeutils.RowTypeInfo(j_types_array)
             else:
                 j_names_array = get_gateway().new_array(get_gateway().jvm.java.lang.String,
-                                                        len(self.field_names))
-                for i in range(len(self.field_names)):
-                    j_names_array[i] = self.field_names[i]
+                                                        len(self._field_names))
+                for i in range(len(self._field_names)):
+                    j_names_array[i] = self._field_names[i]
                 self._j_typeinfo = get_gateway().jvm\
                     .org.apache.flink.api.java.typeutils.RowTypeInfo(j_types_array, j_names_array)
         return self._j_typeinfo
 
     def __eq__(self, other) -> bool:
         if isinstance(other, RowTypeInfo):
-            return self.types == other.types
+            return self._field_types == other._field_types and self._field_names == \
+                other._field_names
         return False
 
     def __repr__(self) -> str:
-        if self.field_names:
+        if self._field_names:
             return "RowTypeInfo(%s)" % ', '.join([field_name + ': ' + str(field_type)
                                                   for field_name, field_type in
                                                   zip(self.get_field_names(),
                                                       self.get_field_types())])
         else:
-            return "RowTypeInfo(%s)" % ', '.join([str(field_type) for field_type in self.types])
+            return "RowTypeInfo(%s)" % ', '.join(
+                [str(field_type) for field_type in self._field_types])
 
     def need_conversion(self):
         return True
@@ -379,15 +381,15 @@ class RowTypeInfo(TypeInformation):
             # Only calling to_internal_type function for fields that need conversion
             if isinstance(obj, dict):
                 return tuple(f.to_internal_type(obj.get(n)) if c else obj.get(n)
-                             for n, f, c in zip(self.get_field_names(), self.types,
+                             for n, f, c in zip(self.get_field_names(), self._field_types,
                                                 self._need_conversion))
             elif isinstance(obj, (tuple, list)):
                 return tuple(f.to_internal_type(v) if c else v
-                             for f, v, c in zip(self.types, obj, self._need_conversion))
+                             for f, v, c in zip(self._field_types, obj, self._need_conversion))
             elif hasattr(obj, "__dict__"):
                 d = obj.__dict__
                 return tuple(f.to_internal_type(d.get(n)) if c else d.get(n)
-                             for n, f, c in zip(self.get_field_names(), self.types,
+                             for n, f, c in zip(self.get_field_names(), self._field_types,
                                                 self._need_conversion))
             else:
                 raise ValueError("Unexpected tuple %r with RowTypeInfo" % obj)
@@ -411,7 +413,7 @@ class RowTypeInfo(TypeInformation):
         if self._need_serialize_any_field:
             # Only calling from_internal_type function for fields that need conversion
             values = [f.from_internal_type(v) if c else v
-                      for f, v, c in zip(self.types, obj, self._need_conversion)]
+                      for f, v, c in zip(self._field_types, obj, self._need_conversion)]
         else:
             values = obj
         return tuple(values)
@@ -422,21 +424,21 @@ class TupleTypeInfo(TypeInformation):
     TypeInformation for Tuple.
     """
 
-    def __init__(self, types: List[TypeInformation]):
-        self.types = types
+    def __init__(self, field_types: List[TypeInformation]):
+        self._field_types = field_types
         super(TupleTypeInfo, self).__init__()
 
     def get_field_types(self) -> List[TypeInformation]:
-        return self.types
+        return self._field_types
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
             j_types_array = get_gateway().new_array(
                 get_gateway().jvm.org.apache.flink.api.common.typeinfo.TypeInformation,
-                len(self.types))
+                len(self._field_types))
 
-            for i in range(len(self.types)):
-                field_type = self.types[i]
+            for i in range(len(self._field_types)):
+                field_type = self._field_types[i]
                 if isinstance(field_type, TypeInformation):
                     j_types_array[i] = field_type.get_java_type_info()
 
@@ -446,11 +448,12 @@ class TupleTypeInfo(TypeInformation):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, TupleTypeInfo):
-            return self.types == other.types
+            return self._field_types == other._field_types
         return False
 
     def __repr__(self) -> str:
-        return "TupleTypeInfo(%s)" % ', '.join([str(field_type) for field_type in self.types])
+        return "TupleTypeInfo(%s)" % ', '.join(
+            [str(field_type) for field_type in self._field_types])
 
 
 class DateTypeInfo(TypeInformation):
@@ -590,24 +593,25 @@ class ListTypeInfo(TypeInformation):
 class MapTypeInfo(TypeInformation):
 
     def __init__(self, key_type_info: TypeInformation, value_type_info: TypeInformation):
-        self.key_type_info = key_type_info
-        self.value_type_info = value_type_info
+        self._key_type_info = key_type_info
+        self._value_type_info = value_type_info
         super(MapTypeInfo, self).__init__()
 
     def get_java_type_info(self) -> JavaObject:
         if not self._j_typeinfo:
             self._j_typeinfo = get_gateway().jvm\
                 .org.apache.flink.api.common.typeinfo.Types.MAP(
-                self.key_type_info.get_java_type_info(), self.value_type_info.get_java_type_info())
+                self._key_type_info.get_java_type_info(),
+                self._value_type_info.get_java_type_info())
         return self._j_typeinfo
 
     def __eq__(self, other):
         if isinstance(other, MapTypeInfo):
-            return self.key_type_info == other.key_type_info and \
-                self.value_type_info == other.value_type_info
+            return self._key_type_info == other._key_type_info and \
+                self._value_type_info == other._value_type_info
 
     def __repr__(self) -> str:
-        return 'MapTypeInfo<{}, {}>'.format(self.key_type_info, self.value_type_info)
+        return 'MapTypeInfo<{}, {}>'.format(self._key_type_info, self._value_type_info)
 
 
 class Types(object):
@@ -618,94 +622,139 @@ class Types(object):
 
     @staticmethod
     def STRING() -> TypeInformation:
+        """
+        Returns type information for string. Supports a None value.
+        """
         return BasicTypeInfo.STRING_TYPE_INFO()
 
     @staticmethod
     def BYTE() -> TypeInformation:
+        """
+        Returns type information for byte. Does not support a None value.
+        """
         return BasicTypeInfo.BYTE_TYPE_INFO()
 
     @staticmethod
     def BOOLEAN() -> TypeInformation:
+        """
+        Returns type information for bool. Does not support a None value.
+        """
         return BasicTypeInfo.BOOLEAN_TYPE_INFO()
 
     @staticmethod
     def SHORT() -> TypeInformation:
+        """
+        Returns type information for short. Does not support a None value.
+        """
         return BasicTypeInfo.SHORT_TYPE_INFO()
 
     @staticmethod
     def INT() -> TypeInformation:
+        """
+        Returns type information for int. Does not support a None value.
+        """
         return BasicTypeInfo.INT_TYPE_INFO()
 
     @staticmethod
     def LONG() -> TypeInformation:
+        """
+        Returns type information for long. Does not support a None value.
+        """
         return BasicTypeInfo.LONG_TYPE_INFO()
 
     @staticmethod
     def FLOAT() -> TypeInformation:
+        """
+        Returns type information for float. Does not support a None value.
+        """
         return BasicTypeInfo.FLOAT_TYPE_INFO()
 
     @staticmethod
     def DOUBLE() -> TypeInformation:
+        """
+        Returns type information for double. Does not support a None value.
+        """
         return BasicTypeInfo.DOUBLE_TYPE_INFO()
 
     @staticmethod
     def CHAR() -> TypeInformation:
+        """
+        Returns type information for char. Does not support a None value.
+        """
         return BasicTypeInfo.CHAR_TYPE_INFO()
 
     @staticmethod
     def BIG_INT() -> TypeInformation:
+        """
+        Returns type information for BigInteger. Supports a None value.
+        """
         return BasicTypeInfo.BIG_INT_TYPE_INFO()
 
     @staticmethod
     def BIG_DEC() -> TypeInformation:
+        """
+        Returns type information for BigDecimal. Supports a None value.
+        """
         return BasicTypeInfo.BIG_DEC_TYPE_INFO()
 
     @staticmethod
     def SQL_DATE() -> TypeInformation:
+        """
+        Returns type information for Date. Supports a None value.
+        """
         return SqlTimeTypeInfo.DATE()
 
     @staticmethod
     def SQL_TIME() -> TypeInformation:
+        """
+        Returns type information for Time. Supports a None value.
+        """
         return SqlTimeTypeInfo.TIME()
 
     @staticmethod
     def SQL_TIMESTAMP() -> TypeInformation:
+        """
+        Returns type information for Timestamp. Supports a None value.
+        """
         return SqlTimeTypeInfo.TIMESTAMP()
 
     @staticmethod
     def PICKLED_BYTE_ARRAY() -> TypeInformation:
+        """
+        Returns type information which uses pickle for serialization/deserialization.
+        """
         return PickledBytesTypeInfo()
 
     @staticmethod
-    def ROW(types: List[TypeInformation]):
+    def ROW(field_types: List[TypeInformation]):
         """
         Returns type information for Row with fields of the given types. A row itself must not be
         null.
 
-        :param types: the types of the row fields, e.g., Types.String(), Types.INT()
+        :param field_types: the types of the row fields, e.g., Types.String(), Types.INT()
         """
-        return RowTypeInfo(types)
+        return RowTypeInfo(field_types)
 
     @staticmethod
-    def ROW_NAMED(names: List[str], types: List[TypeInformation]):
+    def ROW_NAMED(field_names: List[str], field_types: List[TypeInformation]):
         """
         Returns type information for Row with fields of the given types and with given names. A row
         must not be null.
 
-        :param names: array of field names.
-        :param types: array of field types.
+        :param field_names: array of field names.
+        :param field_types: array of field types.
         """
-        return RowTypeInfo(types, names)
+        return RowTypeInfo(field_types, field_names)
 
     @staticmethod
-    def TUPLE(types: List[TypeInformation]):
+    def TUPLE(field_types: List[TypeInformation]):
         """
         Returns type information for Tuple with fields of the given types. A Tuple itself must not
         be null.
 
-        :param types: array of field types.
+        :param field_types: array of field types.
         """
-        return TupleTypeInfo(types)
+        return TupleTypeInfo(field_types)
 
     @staticmethod
     def PRIMITIVE_ARRAY(element_type: TypeInformation):
@@ -714,7 +763,7 @@ class Types(object):
         be null.
 
         :param element_type: element type of the array (e.g. Types.BOOLEAN(), Types.INT(),
-        Types.DOUBLE())
+                             Types.DOUBLE())
         """
         return PrimitiveArrayTypeInfo(element_type)
 
@@ -724,9 +773,8 @@ class Types(object):
         Returns type information for arrays of boxed primitive type (such as Integer[]).
 
         :param element_type: element type of the array (e.g. Types.BOOLEAN(), Types.INT(),
-        Types.DOUBLE())
+                             Types.DOUBLE())
         """
-
         return BasicArrayTypeInfo(element_type)
 
     @staticmethod

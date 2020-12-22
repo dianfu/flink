@@ -98,8 +98,7 @@ public class PythonTypeUtilsTest {
 		TypeInformation tupleTypeInfo = Types.TUPLE(Types.INT);
 		convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(tupleTypeInfo);
 		assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.TUPLE);
-		assertEquals(convertedFieldType.getTupleTypeInfo().getFields(0).getFieldType().getTypeName(),
-			FlinkFnApi.TypeInfo.TypeName.INT);
+		assertEquals(convertedFieldType.getTupleTypeInfo().getFieldTypes(0), FlinkFnApi.TypeInfo.TypeName.INT);
 	}
 
 	@Test
