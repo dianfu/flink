@@ -600,25 +600,20 @@ def from_type_info_proto(type_info):
         return _type_info_name_mappings[field_type_name]
     except KeyError:
         if field_type_name == type_info_name.ROW:
-            return RowCoder([from_type_info_proto(f.field_type)
-                             for f in type_info.row_type_info.fields],
-                            [f.field_name for f in type_info.row_type_info.fields])
-
-        if field_type_name == type_info_name.PRIMITIVE_ARRAY:
+            return RowCoder(
+                [from_type_info_proto(f.field_type) for f in type_info.row_type_info.fields],
+                [f.field_name for f in type_info.row_type_info.fields])
+        elif field_type_name == type_info_name.PRIMITIVE_ARRAY:
             return PrimitiveArrayCoder(from_type_info_proto(type_info.collection_element_type))
-
-        if field_type_name == type_info_name.BASIC_ARRAY:
+        elif field_type_name == type_info_name.BASIC_ARRAY:
             return BasicArrayCoder(from_type_info_proto(type_info.collection_element_type))
-
-        if field_type_name == type_info_name.TUPLE:
-            return TupleCoder([from_type_info_proto(f.field_type)
-                               for f in type_info.tuple_type_info.fields])
-
-        if field_type_name == type_info_name.MAP:
+        elif field_type_name == type_info_name.TUPLE:
+            return TupleCoder([from_type_info_proto(field_type)
+                               for field_type in type_info.tuple_type_info.field_types])
+        elif field_type_name == type_info_name.MAP:
             return MapCoder(from_type_info_proto(type_info.map_type_info.key_type),
                             from_type_info_proto(type_info.map_type_info.value_type))
-
-        if field_type_name == type_info_name.LIST:
+        elif field_type_name == type_info_name.LIST:
             return BasicArrayCoder(from_type_info_proto(type_info.collection_element_type))
-
-        raise ValueError("field_type %s is not supported." % type_info)
+        else:
+            raise ValueError("Unsupported type_info %s." % type_info)

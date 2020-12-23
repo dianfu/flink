@@ -356,8 +356,7 @@ class RowTypeInfo(TypeInformation):
 
     def __eq__(self, other) -> bool:
         if isinstance(other, RowTypeInfo):
-            return self._field_types == other._field_types and self._field_names == \
-                other._field_names
+            return self._field_types == other._field_types
         return False
 
     def __repr__(self) -> str:
