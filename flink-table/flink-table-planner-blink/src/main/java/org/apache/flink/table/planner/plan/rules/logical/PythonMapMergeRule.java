@@ -56,11 +56,7 @@ public class PythonMapMergeRule extends RelOptRule {
 		FlinkLogicalCalc topCalc = call.rel(0);
 		FlinkLogicalCalc middleCalc = call.rel(1);
 		FlinkLogicalCalc bottomCalc = call.rel(2);
-		return isChainedRowBasedPythonFunction(topCalc, middleCalc, bottomCalc);
-	}
 
-	private boolean isChainedRowBasedPythonFunction(
-		FlinkLogicalCalc topCalc, FlinkLogicalCalc middleCalc, FlinkLogicalCalc bottomCalc) {
 		RexProgram topProgram = topCalc.getProgram();
 		List<RexNode> topProjects = topProgram.getProjectList()
 			.stream()
@@ -96,14 +92,13 @@ public class PythonMapMergeRule extends RelOptRule {
 			.getValue()
 			.getFieldList().size();
 
-		return isInputsCorrespondWithUpstreamOutputs(topProjects, middleProjects) &&
-			isFlattenCalc(middleProjects, inputRowFieldCount);
+		return isFlattenCalc(middleProjects, inputRowFieldCount) &&
+			isTopCalcTakesWholeMiddleCalcAsInputs((RexCall) topProjects.get(0), middleProjects.size());
 	}
 
-	private boolean isInputsCorrespondWithUpstreamOutputs(List<RexNode> topProjects, List<RexNode> middleProjects) {
-		RexCall pythonCall = (RexCall) topProjects.get(0);
+	private boolean isTopCalcTakesWholeMiddleCalcAsInputs(RexCall pythonCall, int inputColumnCount) {
 		List<RexNode> pythonCallInputs = pythonCall.getOperands();
-		if (pythonCallInputs.size() != middleProjects.size()) {
+		if (pythonCallInputs.size() != inputColumnCount) {
 			return false;
 		}
 		for (int i = 0; i < pythonCallInputs.size(); i++) {
@@ -159,7 +154,7 @@ public class PythonMapMergeRule extends RelOptRule {
 			.collect(Collectors.toList());
 		RexCall topPythonCall = topProjects.get(0);
 
-		// merge bottomCalc and middleCalc
+		// merge topCalc and middleCalc
 		RexCall newPythonCall = topPythonCall.clone(topPythonCall.getType(),
 			Collections.singletonList(RexInputRef.of(0, bottomCalc.getRowType())));
 		List<RexCall> topMiddleMergedProjects = Collections.singletonList(newPythonCall);
