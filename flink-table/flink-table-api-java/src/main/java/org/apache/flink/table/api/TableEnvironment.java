@@ -22,8 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.descriptors.ConnectTableDescriptor;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
+import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -206,6 +205,7 @@ public interface TableEnvironment {
      *
      * @param rowType Expected row type for the values.
      * @param values Expressions for constructing rows of the VALUES table.
+     *
      * @see #fromValues(Object...)
      */
     default Table fromValues(AbstractDataType<?> rowType, Object... values) {
@@ -324,6 +324,7 @@ public interface TableEnvironment {
      *
      * @param rowType Expected row type for the values.
      * @param values Expressions for constructing rows of the VALUES table.
+     *
      * @see #fromValues(Expression...)
      */
     Table fromValues(AbstractDataType<?> rowType, Expression... values);
@@ -334,6 +335,7 @@ public interface TableEnvironment {
      * <p>See {@link #fromValues(Object...)} for more explanation.
      *
      * @param values Expressions for constructing rows of the VALUES table.
+     *
      * @see #fromValues(Object...)
      */
     Table fromValues(Iterable<?> values);
@@ -345,6 +347,7 @@ public interface TableEnvironment {
      *
      * @param rowType Expected row type for the values.
      * @param values Expressions for constructing rows of the VALUES table.
+     *
      * @see #fromValues(AbstractDataType, Object...)
      */
     Table fromValues(AbstractDataType<?> rowType, Iterable<?> values);
@@ -370,6 +373,7 @@ public interface TableEnvironment {
      * Gets a registered {@link Catalog} by name.
      *
      * @param catalogName The name to look up the {@link Catalog}.
+     *
      * @return The requested catalog, empty if there is no registered catalog with given name.
      */
     Optional<Catalog> getCatalog(String catalogName);
@@ -396,9 +400,9 @@ public interface TableEnvironment {
      * user-defined functions under this name.
      *
      * @deprecated Use {@link #createTemporarySystemFunction(String, UserDefinedFunction)} instead.
-     *     Please note that the new method also uses the new type system and reflective extraction
-     *     logic. It might be necessary to update the function implementation as well. See the
-     *     documentation of {@link ScalarFunction} for more information on the new function design.
+     *         Please note that the new method also uses the new type system and reflective extraction
+     *         logic. It might be necessary to update the function implementation as well. See the
+     *         documentation of {@link ScalarFunction} for more information on the new function design.
      */
     @Deprecated
     void registerFunction(String name, ScalarFunction function);
@@ -440,7 +444,7 @@ public interface TableEnvironment {
      *
      * @param name The name under which the function will be registered globally.
      * @param functionInstance The (possibly pre-configured) function instance containing the
-     *     implementation.
+     *         implementation.
      */
     void createTemporarySystemFunction(String name, UserDefinedFunction functionInstance);
 
@@ -451,6 +455,7 @@ public interface TableEnvironment {
      * queries that reference this name.
      *
      * @param name The name under which the function has been registered globally.
+     *
      * @return true if a function existed under the given name and was removed
      */
     boolean dropTemporarySystemFunction(String name);
@@ -465,7 +470,7 @@ public interface TableEnvironment {
      * path.
      *
      * @param path The path under which the function will be registered. See also the {@link
-     *     TableEnvironment} class description for the format of the path.
+     *         TableEnvironment} class description for the format of the path.
      * @param functionClass The function class containing the implementation.
      */
     void createFunction(String path, Class<? extends UserDefinedFunction> functionClass);
@@ -477,10 +482,10 @@ public interface TableEnvironment {
      * (implicitly or explicitly) identified by a catalog and database.
      *
      * @param path The path under which the function will be registered. See also the {@link
-     *     TableEnvironment} class description for the format of the path.
+     *         TableEnvironment} class description for the format of the path.
      * @param functionClass The function class containing the implementation.
      * @param ignoreIfExists If a function exists under the given path and this flag is set, no
-     *     operation is executed. An exception is thrown otherwise.
+     *         operation is executed. An exception is thrown otherwise.
      */
     void createFunction(
             String path,
@@ -491,7 +496,8 @@ public interface TableEnvironment {
      * Drops a catalog function registered in the given path.
      *
      * @param path The path under which the function has been registered. See also the {@link
-     *     TableEnvironment} class description for the format of the path.
+     *         TableEnvironment} class description for the format of the path.
+     *
      * @return true if a function existed in the given path and was removed
      */
     boolean dropFunction(String path);
@@ -508,7 +514,7 @@ public interface TableEnvironment {
      * available again one can drop the corresponding temporary function.
      *
      * @param path The path under which the function will be registered. See also the {@link
-     *     TableEnvironment} class description for the format of the path.
+     *         TableEnvironment} class description for the format of the path.
      * @param functionClass The function class containing the implementation.
      */
     void createTemporaryFunction(String path, Class<? extends UserDefinedFunction> functionClass);
@@ -529,9 +535,9 @@ public interface TableEnvironment {
      * available again one can drop the corresponding temporary function.
      *
      * @param path The path under which the function will be registered. See also the {@link
-     *     TableEnvironment} class description for the format of the path.
+     *         TableEnvironment} class description for the format of the path.
      * @param functionInstance The (possibly pre-configured) function instance containing the
-     *     implementation.
+     *         implementation.
      */
     void createTemporaryFunction(String path, UserDefinedFunction functionInstance);
 
@@ -542,7 +548,8 @@ public interface TableEnvironment {
      * queries that reference this path.
      *
      * @param path The path under which the function will be registered. See also the {@link
-     *     TableEnvironment} class description for the format of the path.
+     *         TableEnvironment} class description for the format of the path.
+     *
      * @return true if a function existed in the given path and was removed
      */
     boolean dropTemporaryFunction(String path);
@@ -557,6 +564,7 @@ public interface TableEnvironment {
      *
      * @param name The name under which the table will be registered.
      * @param table The table to register.
+     *
      * @deprecated use {@link #createTemporaryView(String, Table)}
      */
     @Deprecated
@@ -570,7 +578,7 @@ public interface TableEnvironment {
      * one can drop the corresponding temporary object.
      *
      * @param path The path under which the view will be registered. See also the {@link
-     *     TableEnvironment} class description for the format of the path.
+     *         TableEnvironment} class description for the format of the path.
      * @param view The view to register.
      */
     void createTemporaryView(String path, Table view);
@@ -599,7 +607,9 @@ public interface TableEnvironment {
      * }</pre>
      *
      * @param tablePath The path of the table to scan.
+     *
      * @return The resulting {@link Table}.
+     *
      * @see TableEnvironment#useCatalog(String)
      * @see TableEnvironment#useDatabase(String)
      * @deprecated use {@link #from(String)}
@@ -637,7 +647,9 @@ public interface TableEnvironment {
      * }</pre>
      *
      * @param path The path of a table API object to scan.
+     *
      * @return Either a table or virtual table (=view).
+     *
      * @see TableEnvironment#useCatalog(String)
      * @see TableEnvironment#useDatabase(String)
      */
@@ -651,12 +663,13 @@ public interface TableEnvironment {
      *
      * @param table The Table to write to the sink.
      * @param sinkPath The first part of the path of the registered {@link TableSink} to which the
-     *     {@link Table} is written. This is to ensure at least the name of the {@link TableSink} is
-     *     provided.
+     *         {@link Table} is written. This is to ensure at least the name of the {@link TableSink} is
+     *         provided.
      * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink}
-     *     to which the {@link Table} is written.
+     *         to which the {@link Table} is written.
+     *
      * @deprecated use {@link Table#executeInsert(String)} for single sink, use {@link
-     *     TableEnvironment#createStatementSet()} for multiple sinks.
+     *         TableEnvironment#createStatementSet()} for multiple sinks.
      */
     @Deprecated
     void insertInto(Table table, String sinkPath, String... sinkPathContinued);
@@ -668,10 +681,11 @@ public interface TableEnvironment {
      * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
      *
      * @param targetPath The path of the registered {@link TableSink} to which the {@link Table} is
-     *     written.
+     *         written.
      * @param table The Table to write to the sink.
+     *
      * @deprecated use {@link Table#executeInsert(String)} for single sink, use {@link
-     *     TableEnvironment#createStatementSet()} for multiple sinks.
+     *         TableEnvironment#createStatementSet()} for multiple sinks.
      */
     @Deprecated
     void insertInto(String targetPath, Table table);
@@ -703,12 +717,8 @@ public interface TableEnvironment {
      * }</pre>
      *
      * @param connectorDescriptor connector descriptor describing the external system
-     * @deprecated The SQL {@code CREATE TABLE} DDL is richer than this part of the API. This method
-     *     might be refactored in the next versions. Please use {@link #executeSql(String)
-     *     executeSql(ddl)} to register a table instead.
      */
-    @Deprecated
-    ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
+    void createTemporaryTable(String tableName, TableDescriptor tableDescriptor);
 
     /**
      * Gets the names of all catalogs registered in this environment.
@@ -736,7 +746,8 @@ public interface TableEnvironment {
      * current catalog). It returns both temporary and permanent tables and views.
      *
      * @return A list of the names of all registered tables in the current database of the current
-     *     catalog.
+     *         catalog.
+     *
      * @see #listTemporaryTables()
      * @see #listTemporaryViews()
      */
@@ -747,7 +758,8 @@ public interface TableEnvironment {
      * current catalog). It returns both temporary and permanent views.
      *
      * @return A list of the names of all registered views in the current database of the current
-     *     catalog.
+     *         catalog.
+     *
      * @see #listTemporaryViews()
      */
     String[] listViews();
@@ -757,7 +769,8 @@ public interface TableEnvironment {
      * current database of the current catalog).
      *
      * @return A list of the names of all registered temporary tables and views in the current
-     *     database of the current catalog.
+     *         database of the current catalog.
+     *
      * @see #listTables()
      */
     String[] listTemporaryTables();
@@ -767,7 +780,8 @@ public interface TableEnvironment {
      * database of the current catalog).
      *
      * @return A list of the names of all registered temporary views in the current database of the
-     *     current catalog.
+     *         current catalog.
+     *
      * @see #listTables()
      */
     String[] listTemporaryViews();
@@ -803,6 +817,7 @@ public interface TableEnvironment {
      * the result of the given {@link Table}.
      *
      * @param table The table for which the AST and execution plan will be returned.
+     *
      * @deprecated use {@link Table#explain(ExplainDetail...)}.
      */
     @Deprecated
@@ -814,6 +829,7 @@ public interface TableEnvironment {
      *
      * @param table The table for which the AST and execution plan will be returned.
      * @param extended if the plan should contain additional properties, e.g. estimated cost, traits
+     *
      * @deprecated use {@link Table#explain(ExplainDetail...)}.
      */
     @Deprecated
@@ -824,6 +840,7 @@ public interface TableEnvironment {
      * the result of multiple-sinks plan.
      *
      * @param extended if the plan should contain additional properties, e.g. estimated cost, traits
+     *
      * @deprecated use {@link StatementSet#explain(ExplainDetail...)}.
      */
     @Deprecated
@@ -835,7 +852,8 @@ public interface TableEnvironment {
      *
      * @param statement The statement for which the AST and execution plan will be returned.
      * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming, displaying execution plan in json format
+     *         estimated cost, changelog mode for streaming, displaying execution plan in json format
+     *
      * @return AST and the execution plan.
      */
     String explainSql(String statement, ExplainDetail... extraDetails);
@@ -846,7 +864,9 @@ public interface TableEnvironment {
      *
      * @param statement Partial or slightly incorrect SQL statement
      * @param position cursor position
+     *
      * @return completion hints that fit at the current cursor position
+     *
      * @deprecated Will be removed in the next release
      */
     @Deprecated
@@ -868,6 +888,7 @@ public interface TableEnvironment {
      * }</pre>
      *
      * @param query The SQL query to evaluate.
+     *
      * @return The result of the query as Table
      */
     Table sqlQuery(String query);
@@ -880,7 +901,7 @@ public interface TableEnvironment {
      * is returned once the operation has finished.
      *
      * @return content for DQL/SHOW/DESCRIBE/EXPLAIN, the affected row count for `DML` (-1 means
-     *     unknown), or a string message ("OK") for other statements.
+     *         unknown), or a string message ("OK") for other statements.
      */
     TableResult executeSql(String statement);
 
@@ -959,8 +980,9 @@ public interface TableEnvironment {
      * <p>This code snippet creates a job to read data from Kafka source into a CSV sink.
      *
      * @param stmt The SQL statement to evaluate.
+     *
      * @deprecated use {@link #executeSql(String)} for single statement, use {@link
-     *     TableEnvironment#createStatementSet()} for multiple DML statements.
+     *         TableEnvironment#createStatementSet()} for multiple DML statements.
      */
     @Deprecated
     void sqlUpdate(String stmt);
@@ -969,6 +991,7 @@ public interface TableEnvironment {
      * Gets the current default catalog name of the current session.
      *
      * @return The current default catalog name that is used for the path resolution.
+     *
      * @see TableEnvironment#useCatalog(String)
      */
     String getCurrentCatalog();
@@ -1030,6 +1053,7 @@ public interface TableEnvironment {
      * </table>
      *
      * @param catalogName The name of the catalog to set as the current default catalog.
+     *
      * @see TableEnvironment#useDatabase(String)
      */
     void useCatalog(String catalogName);
@@ -1038,6 +1062,7 @@ public interface TableEnvironment {
      * Gets the current default database name of the running session.
      *
      * @return The name of the current database of the current catalog.
+     *
      * @see TableEnvironment#useDatabase(String)
      */
     String getCurrentDatabase();
@@ -1099,6 +1124,7 @@ public interface TableEnvironment {
      * </table>
      *
      * @param databaseName The name of the database to set as the current database.
+     *
      * @see TableEnvironment#useCatalog(String)
      */
     void useDatabase(String databaseName);
@@ -1124,10 +1150,12 @@ public interface TableEnvironment {
      * this method again.
      *
      * @param jobName Desired name of the job
+     *
      * @return The result of the job execution, containing elapsed time and accumulators.
+     *
      * @throws Exception which occurs during job execution.
      * @deprecated use {@link #executeSql(String)} or {@link Table#executeInsert(String)} for single
-     *     sink, use {@link #createStatementSet()} for multiple sinks.
+     *         sink, use {@link #createStatementSet()} for multiple sinks.
      */
     @Deprecated
     JobExecutionResult execute(String jobName) throws Exception;

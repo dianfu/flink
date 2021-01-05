@@ -18,50 +18,32 @@
 
 package org.apache.flink.table.descriptors;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.Registration;
 import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Describes a table connected from {@link TableEnvironment#connect(ConnectorDescriptor)}.
  *
  * <p>It can access {@link TableEnvironment} for fluently registering the table.
  */
-@PublicEvolving
-public abstract class ConnectTableDescriptor extends TableDescriptor<ConnectTableDescriptor> {
+@Internal
+public class TableDescriptorRegistration {
 
     private final Registration registration;
 
-    private @Nullable Schema schemaDescriptor;
+    private final TableDescriptor tableDescriptor;
 
     private List<String> partitionKeys = new ArrayList<>();
 
-    public ConnectTableDescriptor(
-            Registration registration, ConnectorDescriptor connectorDescriptor) {
-        super(connectorDescriptor);
+    public TableDescriptorRegistration(
+            Registration registration, TableDescriptor tableDescriptor) {
         this.registration = registration;
-    }
-
-    /** Specifies the resulting table schema. */
-    public ConnectTableDescriptor withSchema(Schema schema) {
-        schemaDescriptor = Preconditions.checkNotNull(schema, "Schema must not be null.");
-        return this;
-    }
-
-    /** Specifies the partition keys of this table. */
-    public ConnectTableDescriptor withPartitionKeys(List<String> partitionKeys) {
-        this.partitionKeys =
-                Preconditions.checkNotNull(partitionKeys, "PartitionKeys must not be null.");
-        return this;
+        this.tableDescriptor = tableDescriptor;
     }
 
     /**
@@ -80,22 +62,10 @@ public abstract class ConnectTableDescriptor extends TableDescriptor<ConnectTabl
      * @param path path where to register the temporary table
      */
     public void createTemporaryTable(String path) {
-        if (schemaDescriptor == null) {
-            throw new TableException(
-                    "Table schema must be explicitly defined. To derive schema from the underlying connector"
-                            + " use registerTableSourceInternal/registerTableSinkInternal/registerTableSourceAndSink.");
-        }
-
-        registration.createTemporaryTable(path, CatalogTableImpl.fromProperties(toProperties()));
-    }
-
-    @Override
-    protected Map<String, String> additionalProperties() {
-        DescriptorProperties properties = new DescriptorProperties();
-        if (schemaDescriptor != null) {
-            properties.putProperties(schemaDescriptor.toProperties());
-        }
-        properties.putPartitionKeys(partitionKeys);
-        return properties.asMap();
+        registration.createTemporaryTable(path, new CatalogTableImpl(
+                tableDescriptor.getSchema(),
+                tableDescriptor.getPartitionedFields(),
+                tableDescriptor.getOptions(),
+                null));
     }
 }

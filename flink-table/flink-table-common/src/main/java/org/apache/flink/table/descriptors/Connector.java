@@ -19,24 +19,33 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.internal.Registration;
 
-/**
- * Describes a table connected from a streaming environment.
- *
- * <p>This class just exists for backwards compatibility use {@link ConnectTableDescriptor} for
- * declarations.
- */
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
+
 @PublicEvolving
-public final class StreamTableDescriptor extends ConnectTableDescriptor {
-
-    public StreamTableDescriptor(
-            Registration registration, ConnectorDescriptor connectorDescriptor) {
-        super(registration, connectorDescriptor);
+public class Connector {
+    public static ConnectorBuilder of(String identifier) {
+        return new ConnectorBuilder(identifier);
     }
 
-    @Override
-    public StreamTableDescriptor withSchema(Schema schema) {
-        return (StreamTableDescriptor) super.withSchema(schema);
+    private static class ConnectorBuilder extends TableDescriptorBuilder<ConnectorBuilder> {
+
+        private ConnectorBuilder(String identifier) {
+            option(CONNECTOR.key(), identifier);
+        }
+
+        public ConnectorBuilder option(String key, String value) {
+            String lowerKey = key.toLowerCase().trim();
+            if (CONNECTOR.key().equals(lowerKey)) {
+                throw new IllegalArgumentException(
+                        "It's not allowed to override 'connector' option.");
+            }
+            return super.option(key, value);
+        }
+
+        @Override
+        protected ConnectorBuilder self() {
+            return this;
+        }
     }
 }

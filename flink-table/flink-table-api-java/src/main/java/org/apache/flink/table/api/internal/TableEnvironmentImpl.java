@@ -68,8 +68,8 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.StreamTableDescriptor;
+import org.apache.flink.table.descriptors.TableDescriptor;
+import org.apache.flink.table.descriptors.TableDescriptorRegistration;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.CatalogFactory;
@@ -516,8 +516,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
-        return new StreamTableDescriptor(registration, connectorDescriptor);
+    public void createTemporaryTable(String tableName, TableDescriptor tableDescriptor) {
+        TableDescriptorRegistration tableDescriptorRegistration = new TableDescriptorRegistration(
+                registration,
+                tableDescriptor);
+        tableDescriptorRegistration.createTemporaryTable(tableName);
     }
 
     @Override
@@ -1040,12 +1043,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return buildShowResult("catalog name", listCatalogs());
         } else if (operation instanceof ShowCurrentCatalogOperation) {
             return buildShowResult(
-                    "current catalog name", new String[] {catalogManager.getCurrentCatalog()});
+                    "current catalog name", new String[]{catalogManager.getCurrentCatalog()});
         } else if (operation instanceof ShowDatabasesOperation) {
             return buildShowResult("database name", listDatabases());
         } else if (operation instanceof ShowCurrentDatabaseOperation) {
             return buildShowResult(
-                    "current database name", new String[] {catalogManager.getCurrentDatabase()});
+                    "current database name", new String[]{catalogManager.getCurrentDatabase()});
         } else if (operation instanceof ShowTablesOperation) {
             return buildShowResult("table name", listTables());
         } else if (operation instanceof ShowFunctionsOperation) {
@@ -1128,9 +1131,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private TableResult buildShowResult(String columnName, String[] objects) {
         return buildResult(
-                new String[] {columnName},
-                new DataType[] {DataTypes.STRING()},
-                Arrays.stream(objects).map((c) -> new String[] {c}).toArray(String[][]::new));
+                new String[]{columnName},
+                new DataType[]{DataTypes.STRING()},
+                Arrays.stream(objects).map((c) -> new String[]{c}).toArray(String[][]::new));
     }
 
     private TableResult buildDescribeResult(TableSchema schema) {
@@ -1160,26 +1163,26 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         .map(
                                 (c) -> {
                                     final LogicalType logicalType = c.getType().getLogicalType();
-                                    return new Object[] {
-                                        c.getName(),
-                                        logicalType.copy(true).asSummaryString(),
-                                        logicalType.isNullable(),
-                                        fieldToPrimaryKey.getOrDefault(c.getName(), null),
-                                        c.explainExtras().orElse(null),
-                                        fieldToWatermark.getOrDefault(c.getName(), null)
+                                    return new Object[]{
+                                            c.getName(),
+                                            logicalType.copy(true).asSummaryString(),
+                                            logicalType.isNullable(),
+                                            fieldToPrimaryKey.getOrDefault(c.getName(), null),
+                                            c.explainExtras().orElse(null),
+                                            fieldToWatermark.getOrDefault(c.getName(), null)
                                     };
                                 })
                         .toArray(Object[][]::new);
 
         return buildResult(
-                new String[] {"name", "type", "null", "key", "extras", "watermark"},
-                new DataType[] {
-                    DataTypes.STRING(),
-                    DataTypes.STRING(),
-                    DataTypes.BOOLEAN(),
-                    DataTypes.STRING(),
-                    DataTypes.STRING(),
-                    DataTypes.STRING()
+                new String[]{"name", "type", "null", "key", "extras", "watermark"},
+                new DataType[]{
+                        DataTypes.STRING(),
+                        DataTypes.STRING(),
+                        DataTypes.BOOLEAN(),
+                        DataTypes.STRING(),
+                        DataTypes.STRING(),
+                        DataTypes.STRING()
                 },
                 rows);
     }
@@ -1337,11 +1340,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     protected ExplainDetail[] getExplainDetails(boolean extended) {
         if (extended) {
             if (isStreamingMode) {
-                return new ExplainDetail[] {
-                    ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE
+                return new ExplainDetail[]{
+                        ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE
                 };
             } else {
-                return new ExplainDetail[] {ExplainDetail.ESTIMATED_COST};
+                return new ExplainDetail[]{ExplainDetail.ESTIMATED_COST};
             }
         } else {
             return new ExplainDetail[0];

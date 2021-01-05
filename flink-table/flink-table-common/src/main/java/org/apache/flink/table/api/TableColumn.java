@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -58,6 +59,13 @@ public abstract class TableColumn {
         Preconditions.checkNotNull(type, "Column type can not be null.");
         Preconditions.checkNotNull(expression, "Column expression can not be null.");
         return new ComputedColumn(name, type, expression);
+    }
+
+    /** Creates a computed column that is computed from the given SQL expression. */
+    public static ComputedColumn computed(String name, Expression expression) {
+        Preconditions.checkNotNull(name, "Column name can not be null.");
+        Preconditions.checkNotNull(expression, "Column expression can not be null.");
+        return new ComputedColumn(name, expression);
     }
 
     /**
@@ -197,6 +205,11 @@ public abstract class TableColumn {
             this.expression = expression;
         }
 
+        private ComputedColumn(String name, DataType type, Expression expression) {
+            super(name, type);
+            this.expression = expression;
+        }
+
         @Override
         public boolean isPhysical() {
             return false;
@@ -240,7 +253,8 @@ public abstract class TableColumn {
     /** Representation of a metadata column. */
     public static class MetadataColumn extends TableColumn {
 
-        private final @Nullable String metadataAlias;
+        private final @Nullable
+        String metadataAlias;
 
         private final boolean isVirtual;
 
