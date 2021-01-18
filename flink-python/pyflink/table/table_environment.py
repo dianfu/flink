@@ -1736,8 +1736,8 @@ class StreamTableEnvironment(TableEnvironment):
         .. versionadded:: 1.12.0
         """
         j_data_stream = data_stream._j_data_stream
-        get_gateway().jvm \
-            .org.apache.flink.python.util.PythonConfigUtil.setManagedMemory(
+        JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+        JPythonConfigUtil.declareManagedMemory(
             j_data_stream.getTransformation(),
             self._get_j_env(),
             self._j_tenv.getConfig())

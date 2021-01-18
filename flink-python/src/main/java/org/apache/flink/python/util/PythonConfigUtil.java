@@ -134,23 +134,23 @@ public class PythonConfigUtil {
     }
 
     /** Set Python Operator Use Managed Memory. */
-    public static void setManagedMemory(
+    public static void declareManagedMemory(
             Transformation<?> transformation,
             StreamExecutionEnvironment env,
             TableConfig tableConfig) {
         Configuration config = getMergedConfig(env, tableConfig);
         if (config.getBoolean(PythonOptions.USE_MANAGED_MEMORY)) {
-            setManagedMemory(transformation);
+            declareManagedMemory(transformation);
         }
     }
 
-    private static void setManagedMemory(Transformation<?> transformation) {
+    private static void declareManagedMemory(Transformation<?> transformation) {
         if (isPythonOperator(transformation)) {
             transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         List<Transformation<?>> inputTransformations = transformation.getInputs();
         for (Transformation inputTransformation : inputTransformations) {
-            setManagedMemory(inputTransformation);
+            declareManagedMemory(inputTransformation);
         }
     }
 
