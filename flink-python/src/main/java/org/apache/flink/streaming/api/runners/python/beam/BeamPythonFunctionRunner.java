@@ -593,8 +593,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static class SimpleStateRequestHandler implements StateRequestHandler {
 
         private static final String CLEAR_CACHED_ITERATOR_MARK = "clear_iterators";
-        private static final String VALUE_STATE_MARK = "VALUE_STATE";
-        private static final String LIST_STATE_MARK = "LIST_STATE";
+        private static final String VALUE_STATE_MARK = "VS"; // short for VALUE_STATE
+        private static final String LIST_STATE_MARK = "LS"; // short for LIST_STATE
 
         // map state GET request flags
         private static final byte GET_FLAG = 0;
@@ -734,10 +734,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         private List<ByteString> convertToByteString(ListState<byte[]> listState) throws Exception {
             List<ByteString> ret = new LinkedList<>();
-            if (listState.get() == null) {
+            Iterable<byte[]> stateValue = listState.get();
+            if (stateValue == null) {
                 return ret;
             }
-            for (byte[] v : listState.get()) {
+            for (byte[] v : stateValue) {
                 ret.add(ByteString.copyFrom(v));
             }
             return ret;

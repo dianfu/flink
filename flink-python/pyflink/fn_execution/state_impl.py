@@ -729,8 +729,8 @@ class SynchronousMapRuntimeState(MapState):
 
 
 class StateType(Enum):
-    VALUE_STATE = 0
-    LIST_STATE = 1
+    VS = 0  # short for VALUE_STATE
+    LS = 1  # short for LIST_STATE
 
 
 class RemoteKeyedStateBackend(object):
@@ -767,7 +767,7 @@ class RemoteKeyedStateBackend(object):
         if name in self._all_states:
             self.validate_list_state(name, element_coder)
             return self._all_states[name]
-        internal_bag_state = self._get_internal_bag_state(name, element_coder, StateType.LIST_STATE)
+        internal_bag_state = self._get_internal_bag_state(name, element_coder, StateType.LS)
         list_state = SynchronousListRuntimeState(internal_bag_state)
         self._all_states[name] = list_state
         return list_state
@@ -776,7 +776,7 @@ class RemoteKeyedStateBackend(object):
         if name in self._all_states:
             self.validate_value_state(name, value_coder)
             return self._all_states[name]
-        internal_bag_state = self._get_internal_bag_state(name, value_coder, StateType.VALUE_STATE)
+        internal_bag_state = self._get_internal_bag_state(name, value_coder, StateType.VS)
         value_state = SynchronousValueRuntimeState(internal_bag_state)
         self._all_states[name] = value_state
         return value_state
@@ -876,10 +876,10 @@ class RemoteKeyedStateBackend(object):
                     (state_name, encoded_old_key), state_obj._internal_state)
             if isinstance(state_obj, SynchronousValueRuntimeState):
                 state_obj._internal_state = self._get_internal_bag_state(
-                    state_name, state_obj._internal_state._value_coder, StateType.VALUE_STATE)
+                    state_name, state_obj._internal_state._value_coder, StateType.VS)
             elif isinstance(state_obj, SynchronousListRuntimeState):
                 state_obj._internal_state = self._get_internal_bag_state(
-                    state_name, state_obj._internal_state._value_coder, StateType.LIST_STATE)
+                    state_name, state_obj._internal_state._value_coder, StateType.LS)
             elif isinstance(state_obj, SynchronousMapRuntimeState):
                 state_obj._internal_state = self._get_internal_map_state(
                     state_name,
