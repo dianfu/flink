@@ -42,6 +42,7 @@ from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEn
     EnvironmentSettings
 from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table, \
     invoke_java_object_method
+from pyflink.util.java_utils import get_j_env_configuration
 
 
 class StreamExecutionEnvironmentTests(PyFlinkTestCase):
@@ -346,9 +347,14 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             from test_dep1 import add_two
             return add_two(value)
 
+        get_j_env_configuration(self.env._j_stream_execution_environment).\
+            setString("taskmanager.numberOfTaskSlots", "10")
         self.env.add_python_file(python_file_path)
         ds = self.env.from_collection([1, 2, 3, 4, 5])
-        ds = ds.map(plus_two_map, Types.LONG())
+        ds = ds.map(plus_two_map, Types.LONG()) \
+               .slot_sharing_group("data_stream") \
+               .map(lambda i: i, Types.LONG()) \
+               .slot_sharing_group("table")
 
         python_file_path = os.path.join(python_file_dir, "test_dep2.py")
         with open(python_file_path, 'w') as f:
@@ -372,7 +378,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         t_env.to_append_stream(tab, Types.ROW([Types.LONG()])) \
              .map(lambda i: i[0]) \
              .add_sink(self.test_sink)
-        self.env.execute("test add python file")
+        self.env.execute("test add_python_file")
         result = self.test_sink.get_results(True)
         expected = ['6', '7', '8', '9', '10']
         result.sort()

@@ -150,7 +150,7 @@ public class PythonConfigUtil {
 
                 AbstractPythonFunctionOperator<?> pythonFunctionOperator =
                         getPythonOperator(transformation);
-                if ((pythonFunctionOperator != null)) {
+                if (pythonFunctionOperator != null) {
                     Configuration oldConfig = pythonFunctionOperator.getPythonConfig().getConfig();
                     // update dependency related configurations for Python operators
                     pythonFunctionOperator.setPythonConfig(
