@@ -143,40 +143,30 @@ public class PythonConfigUtil {
                 (List<Transformation<?>>) transformationsField.get(env);
         for (Transformation<?> transformation : transformations) {
             alignTransformation(transformation);
+
             if (isPythonOperator(transformation)) {
+                // declare it is a Python operator
                 transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
-                AbstractPythonFunctionOperator pythonFunctionOperator =
+
+                AbstractPythonFunctionOperator<?> pythonFunctionOperator =
                         getPythonOperator(transformation);
-                if (pythonFunctionOperator != null) {
-                    Configuration oldConfig =
-                            pythonFunctionOperator.getPythonConfig().getMergedConfig();
+                if ((pythonFunctionOperator != null)) {
+                    Configuration oldConfig = pythonFunctionOperator.getPythonConfig().getConfig();
+                    // update dependency related configurations for Python operators
                     pythonFunctionOperator.setPythonConfig(
                             generateNewPythonConfig(oldConfig, mergedConfig));
 
+                    // set the emitProgressiveWatermarks flag for
+                    // PythonTimestampsAndWatermarksOperator
                     if (pythonFunctionOperator instanceof PythonTimestampsAndWatermarksOperator) {
-                        ((PythonTimestampsAndWatermarksOperator) pythonFunctionOperator)
+                        ((PythonTimestampsAndWatermarksOperator<?>) pythonFunctionOperator)
                                 .configureEmitProgressiveWatermarks(!executedInBatchMode);
                     }
                 }
             }
         }
 
-        // Update the numPartitions of PartitionCustomOperator after aligned all
-        // operators.
-        for (Transformation<?> transformation : transformations) {
-            Transformation<?> upTransformation = transformation.getInputs().get(0);
-            if (upTransformation instanceof PartitionTransformation) {
-                upTransformation = upTransformation.getInputs().get(0);
-            }
-            AbstractPythonFunctionOperator pythonFunctionOperator =
-                    getPythonOperator(upTransformation);
-            if (pythonFunctionOperator instanceof PythonPartitionCustomOperator) {
-                PythonPartitionCustomOperator partitionCustomFunctionOperator =
-                        (PythonPartitionCustomOperator) pythonFunctionOperator;
-
-                partitionCustomFunctionOperator.setNumPartitions(transformation.getParallelism());
-            }
-        }
+        setPartitionCustomOperatorNumPartitions(transformations);
     }
 
     public static Configuration getMergedConfig(
@@ -222,17 +212,16 @@ public class PythonConfigUtil {
     private static void alignTransformation(Transformation<?> transformation)
             throws NoSuchFieldException, IllegalAccessException {
         String transformName = transformation.getName();
-        Transformation<?> upTransform = transformation.getInputs().get(0);
-        String upTransformName = upTransform.getName();
-        if (upTransformName.equals(KEYED_STREAM_VALUE_OPERATOR_NAME)) {
-            chainTransformation(upTransform, transformation);
-            configForwardPartitioner(upTransform, transformation);
+        Transformation<?> inputTransformation = transformation.getInputs().get(0);
+        String inputTransformName = inputTransformation.getName();
+        if (inputTransformName.equals(KEYED_STREAM_VALUE_OPERATOR_NAME)) {
+            chainTransformation(inputTransformation, transformation);
+            configForwardPartitioner(inputTransformation, transformation);
         }
         if (transformName.equals(STREAM_KEY_BY_MAP_OPERATOR_NAME)
                 || transformName.equals(STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)) {
-
-            chainTransformation(transformation, upTransform);
-            configForwardPartitioner(upTransform, transformation);
+            chainTransformation(transformation, inputTransformation);
+            configForwardPartitioner(inputTransformation, transformation);
         }
     }
 
@@ -254,43 +243,48 @@ public class PythonConfigUtil {
         inputTransformationField.set(transformation, partitionTransform);
     }
 
-    private static AbstractPythonFunctionOperator getPythonOperator(
+    private static AbstractPythonFunctionOperator<?> getPythonOperator(
             Transformation<?> transformation) {
-        StreamOperatorFactory operatorFactory = null;
+        StreamOperatorFactory<?> operatorFactory = null;
         if (transformation instanceof OneInputTransformation) {
-            operatorFactory = ((OneInputTransformation) transformation).getOperatorFactory();
+            operatorFactory = ((OneInputTransformation<?, ?>) transformation).getOperatorFactory();
         } else if (transformation instanceof TwoInputTransformation) {
-            operatorFactory = ((TwoInputTransformation) transformation).getOperatorFactory();
+            operatorFactory =
+                    ((TwoInputTransformation<?, ?, ?>) transformation).getOperatorFactory();
         } else if (transformation instanceof AbstractMultipleInputTransformation) {
             operatorFactory =
-                    ((AbstractMultipleInputTransformation) transformation).getOperatorFactory();
+                    ((AbstractMultipleInputTransformation<?>) transformation).getOperatorFactory();
         }
+
         if (operatorFactory instanceof SimpleOperatorFactory
-                && ((SimpleOperatorFactory) operatorFactory).getOperator()
+                && ((SimpleOperatorFactory<?>) operatorFactory).getOperator()
                         instanceof AbstractPythonFunctionOperator) {
-            return (AbstractPythonFunctionOperator)
-                    ((SimpleOperatorFactory) operatorFactory).getOperator();
+            return (AbstractPythonFunctionOperator<?>)
+                    ((SimpleOperatorFactory<?>) operatorFactory).getOperator();
         }
+
         return null;
     }
 
-    private static boolean isPythonOperator(StreamOperatorFactory streamOperatorFactory) {
-        if (streamOperatorFactory instanceof SimpleOperatorFactory) {
-            return ((SimpleOperatorFactory) streamOperatorFactory).getOperator()
-                    instanceof AbstractPythonFunctionOperator;
+    private static boolean isPythonOperator(Transformation<?> transform) {
+        if (transform instanceof OneInputTransformation) {
+            return isPythonOperator(
+                    ((OneInputTransformation<?, ?>) transform).getOperatorFactory());
+        } else if (transform instanceof TwoInputTransformation) {
+            return isPythonOperator(
+                    ((TwoInputTransformation<?, ?, ?>) transform).getOperatorFactory());
+        } else if (transform instanceof AbstractMultipleInputTransformation) {
+            return isPythonOperator(
+                    ((AbstractMultipleInputTransformation<?>) transform).getOperatorFactory());
         } else {
             return false;
         }
     }
 
-    private static boolean isPythonOperator(Transformation<?> transform) {
-        if (transform instanceof OneInputTransformation) {
-            return isPythonOperator(((OneInputTransformation) transform).getOperatorFactory());
-        } else if (transform instanceof TwoInputTransformation) {
-            return isPythonOperator(((TwoInputTransformation) transform).getOperatorFactory());
-        } else if (transform instanceof AbstractMultipleInputTransformation) {
-            return isPythonOperator(
-                    ((AbstractMultipleInputTransformation) transform).getOperatorFactory());
+    private static boolean isPythonOperator(StreamOperatorFactory<?> streamOperatorFactory) {
+        if (streamOperatorFactory instanceof SimpleOperatorFactory) {
+            return ((SimpleOperatorFactory<?>) streamOperatorFactory).getOperator()
+                    instanceof AbstractPythonFunctionOperator;
         } else {
             return false;
         }
@@ -321,7 +315,8 @@ public class PythonConfigUtil {
                 StreamExecutionEnvironment.class.getDeclaredField("transformations");
         transformationsField.setAccessible(true);
         boolean existsUnboundedSource = false;
-        for (Transformation transform : (List<Transformation<?>>) transformationsField.get(env)) {
+        for (Transformation<?> transform :
+                (List<Transformation<?>>) transformationsField.get(env)) {
             existsUnboundedSource =
                     existsUnboundedSource
                             || (transform instanceof WithBoundedness
@@ -335,9 +330,28 @@ public class PythonConfigUtil {
         if (isPythonOperator(transformation)) {
             transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
-        List<Transformation<?>> inputTransformations = transformation.getInputs();
-        for (Transformation inputTransformation : inputTransformations) {
+
+        for (Transformation<?> inputTransformation : transformation.getInputs()) {
             declareManagedMemory(inputTransformation);
+        }
+    }
+
+    private static void setPartitionCustomOperatorNumPartitions(
+            List<Transformation<?>> transformations) {
+        // Update the numPartitions of PartitionCustomOperator after aligned all operators.
+        for (Transformation<?> transformation : transformations) {
+            Transformation<?> firstInputTransformation = transformation.getInputs().get(0);
+            if (firstInputTransformation instanceof PartitionTransformation) {
+                firstInputTransformation = firstInputTransformation.getInputs().get(0);
+            }
+            AbstractPythonFunctionOperator<?> pythonFunctionOperator =
+                    getPythonOperator(firstInputTransformation);
+            if (pythonFunctionOperator instanceof PythonPartitionCustomOperator) {
+                PythonPartitionCustomOperator<?, ?> partitionCustomFunctionOperator =
+                        (PythonPartitionCustomOperator<?, ?>) pythonFunctionOperator;
+
+                partitionCustomFunctionOperator.setNumPartitions(transformation.getParallelism());
+            }
         }
     }
 }
