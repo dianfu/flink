@@ -24,8 +24,8 @@ import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.util.DecompressUtils;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
-import org.apache.flink.python.util.ZipUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ShutdownHookUtil;
 
@@ -326,9 +326,19 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
 
             // extract archives to archives directory
             for (Map.Entry<String, String> entry : dependencyInfo.getArchives().entrySet()) {
-                ZipUtils.extractZipFileWithPermissions(
-                        entry.getKey(),
-                        String.join(File.separator, archivesDirectory, entry.getValue()));
+                String srcFilePath = entry.getKey();
+                String targetDirPath =
+                        String.join(File.separator, archivesDirectory, entry.getValue());
+                if (hasOneOfSuffixes(srcFilePath, ".zip", ".jar")) {
+                    DecompressUtils.extractZipFileWithPermissions(srcFilePath, targetDirPath);
+                } else if (hasOneOfSuffixes(srcFilePath, ".tar", ".tar.gz", ".tgz")) {
+                    DecompressUtils.extractTarFile(srcFilePath, targetDirPath);
+                } else {
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Only zip, jar, tar, tgz and tar.gz suffixes are supported, found %s",
+                                    srcFilePath));
+                }
             }
         }
     }
@@ -415,5 +425,15 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
                 "Could not find a unique directory name in '"
                         + Arrays.toString(tmpDirectories)
                         + "' for storing the generated files of python dependency.");
+    }
+
+    private static boolean hasOneOfSuffixes(String filePath, String... suffixes) {
+        String lowercaseFilePath = filePath.toLowerCase();
+        for (String suffix : suffixes) {
+            if (lowercaseFilePath.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
