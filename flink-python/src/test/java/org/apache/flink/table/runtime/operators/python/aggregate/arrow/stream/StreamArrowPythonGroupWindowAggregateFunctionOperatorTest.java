@@ -37,7 +37,7 @@ import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAs
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.EventTimeTriggers;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
-import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughBeamPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -498,7 +498,7 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
 
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
-            return new PassThroughPythonAggregateFunctionRunner(
+            return new PassThroughBeamPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
                     userDefinedFunctionInputType,

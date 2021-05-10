@@ -72,7 +72,7 @@ public class PythonKeyedProcessOperator<OUT>
     private final Map<String, String> jobOptions;
 
     /** The TypeInformation of input data. */
-    private final TypeInformation<Row> inputTypeInfo;
+    private final RowTypeInfo inputTypeInfo;
 
     /** The TypeInformation of output data. */
     private final TypeInformation<OUT> outputTypeInfo;
@@ -151,7 +151,7 @@ public class PythonKeyedProcessOperator<OUT>
 
     @Override
     public void open() throws Exception {
-        keyTypeInfo = new RowTypeInfo(((RowTypeInfo) this.inputTypeInfo).getTypeAt(0));
+        keyTypeInfo = new RowTypeInfo(this.inputTypeInfo.getTypeAt(0));
         runnerInputTypeInfo =
                 KeyedInputWithTimerRowFactory.getRunnerInputTypeInfo(inputTypeInfo, keyTypeInfo);
         runnerOutputTypeInfo =
@@ -190,6 +190,14 @@ public class PythonKeyedProcessOperator<OUT>
         return this.outputTypeInfo;
     }
 
+    public RowTypeInfo getInputType() {
+        return this.inputTypeInfo;
+    }
+
+    public DataStreamPythonFunctionInfo getPythonFunctionInfo() {
+        return this.pythonFunctionInfo;
+    }
+
     @Override
     public void onEventTime(InternalTimer<Row, Object> timer) throws Exception {
         bufferedTimestamp.offer(timer.getTimestamp());
@@ -204,7 +212,7 @@ public class PythonKeyedProcessOperator<OUT>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-        return new BeamDataStreamPythonFunctionRunner(
+        return BeamDataStreamPythonFunctionRunner.of(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 runnerInputTypeInfo,

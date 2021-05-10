@@ -92,7 +92,7 @@ public class PythonKeyedCoProcessOperator<OUT>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-        return new BeamDataStreamPythonFunctionRunner(
+        return BeamDataStreamPythonFunctionRunner.of(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 getRunnerInputTypeInfo(),

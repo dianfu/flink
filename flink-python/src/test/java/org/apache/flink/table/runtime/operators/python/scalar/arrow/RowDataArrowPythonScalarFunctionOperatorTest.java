@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScal
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
-import org.apache.flink.table.runtime.utils.PassThroughPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughBeamPythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -108,7 +108,7 @@ public class RowDataArrowPythonScalarFunctionOperatorTest
 
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-            return new PassThroughPythonScalarFunctionRunner(
+            return new PassThroughBeamPythonScalarFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
                     userDefinedFunctionInputType,

@@ -254,7 +254,7 @@ public class PythonConfigUtil {
         return null;
     }
 
-    private static boolean isPythonOperator(Transformation<?> transform) {
+    public static boolean isPythonOperator(Transformation<?> transform) {
         if (transform instanceof OneInputTransformation) {
             return isPythonOperator(
                     ((OneInputTransformation<?, ?>) transform).getOperatorFactory());

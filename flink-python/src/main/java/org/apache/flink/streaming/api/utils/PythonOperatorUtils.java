@@ -28,10 +28,13 @@ import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.ByteString;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -122,11 +125,39 @@ public enum PythonOperatorUtils {
         return builder.build();
     }
 
-    public static FlinkFnApi.UserDefinedDataStreamFunction getUserDefinedDataStreamFunctionProto(
-            DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
-            RuntimeContext runtimeContext,
-            Map<String, String> internalParameters,
-            boolean inBatchExecutionMode) {
+    public static List<FlinkFnApi.UserDefinedDataStreamFunction>
+            getUserDefinedDataStreamFunctionProto(
+                    DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
+                    RuntimeContext runtimeContext,
+                    Map<String, String> internalParameters,
+                    boolean inBatchExecutionMode) {
+        List<FlinkFnApi.UserDefinedDataStreamFunction> results = new ArrayList<>();
+        results.add(
+                createUserDefinedDataStreamFunctionProto(
+                        dataStreamPythonFunctionInfo,
+                        runtimeContext,
+                        internalParameters,
+                        inBatchExecutionMode));
+
+        Object[] inputs = dataStreamPythonFunctionInfo.getInputs();
+        if (inputs != null) {
+            Preconditions.checkArgument(inputs.length == 1);
+            results.addAll(
+                    getUserDefinedDataStreamFunctionProto(
+                            (DataStreamPythonFunctionInfo) inputs[0],
+                            runtimeContext,
+                            internalParameters,
+                            inBatchExecutionMode));
+        }
+        return results;
+    }
+
+    private static FlinkFnApi.UserDefinedDataStreamFunction
+            createUserDefinedDataStreamFunctionProto(
+                    DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
+                    RuntimeContext runtimeContext,
+                    Map<String, String> internalParameters,
+                    boolean inBatchExecutionMode) {
         FlinkFnApi.UserDefinedDataStreamFunction.Builder builder =
                 FlinkFnApi.UserDefinedDataStreamFunction.newBuilder();
         builder.setFunctionType(
@@ -173,22 +204,30 @@ public enum PythonOperatorUtils {
         return builder.build();
     }
 
-    public static FlinkFnApi.UserDefinedDataStreamFunction
+    public static List<FlinkFnApi.UserDefinedDataStreamFunction>
             getUserDefinedDataStreamStatefulFunctionProto(
                     DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo,
                     RuntimeContext runtimeContext,
                     Map<String, String> internalParameters,
-                    TypeInformation keyTypeInfo,
+                    TypeInformation<?> keyTypeInfo,
                     boolean inBatchExecutionMode) {
-        FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction =
+        List<FlinkFnApi.UserDefinedDataStreamFunction> results =
                 getUserDefinedDataStreamFunctionProto(
                         dataStreamPythonFunctionInfo,
                         runtimeContext,
                         internalParameters,
                         inBatchExecutionMode);
+
+        // set the key typeinfo for the head operator
         FlinkFnApi.TypeInfo builtKeyTypeInfo =
                 PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(keyTypeInfo);
-        return userDefinedDataStreamFunction.toBuilder().setKeyTypeInfo(builtKeyTypeInfo).build();
+        results.set(
+                results.size() - 1,
+                results.get(results.size() - 1)
+                        .toBuilder()
+                        .setKeyTypeInfo(builtKeyTypeInfo)
+                        .build());
+        return results;
     }
 
     public static boolean endOfLastFlatMap(int length, byte[] rawData) {

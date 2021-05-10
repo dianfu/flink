@@ -26,7 +26,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
-import org.apache.flink.table.runtime.utils.PassThroughPythonAggregateFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughBeamPythonAggregateFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -146,7 +146,7 @@ public class StreamArrowPythonProcTimeBoundedRowsOperatorTest
 
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
-            return new PassThroughPythonAggregateFunctionRunner(
+            return new PassThroughBeamPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
                     userDefinedFunctionInputType,

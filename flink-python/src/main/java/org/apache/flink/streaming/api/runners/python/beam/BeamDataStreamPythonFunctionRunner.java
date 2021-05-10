@@ -27,11 +27,15 @@ import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,22 +45,26 @@ import java.util.Map;
 @Internal
 public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner {
 
-    private final TypeInformation inputType;
-    private final TypeInformation outputType;
-    private final FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction;
+    private static final String TRANSFORM_ID_PREFIX = "transform-";
+    private static final String COLLECTION_PREFIX = "collection-";
 
-    public BeamDataStreamPythonFunctionRunner(
+    private final TypeInformation<?> inputType;
+    private final TypeInformation<?> outputType;
+    private final String functionUrn;
+    private final List<FlinkFnApi.UserDefinedDataStreamFunction> userDefinedDataStreamFunctions;
+
+    private BeamDataStreamPythonFunctionRunner(
             String taskName,
             PythonEnvironmentManager environmentManager,
-            TypeInformation inputType,
-            TypeInformation outputType,
+            TypeInformation<?> inputType,
+            TypeInformation<?> outputType,
             String functionUrn,
-            FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction,
+            List<FlinkFnApi.UserDefinedDataStreamFunction> userDefinedDataStreamFunctions,
             Map<String, String> jobOptions,
             @Nullable FlinkMetricContainer flinkMetricContainer,
-            KeyedStateBackend stateBackend,
-            TypeSerializer keySerializer,
-            TypeSerializer namespaceSerializer,
+            KeyedStateBackend<?> stateBackend,
+            TypeSerializer<?> keySerializer,
+            TypeSerializer<?> namespaceSerializer,
             MemoryManager memoryManager,
             double managedMemoryFraction,
             FlinkFnApi.CoderParam.DataType inputDataType,
@@ -65,7 +73,6 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
         super(
                 taskName,
                 environmentManager,
-                functionUrn,
                 jobOptions,
                 flinkMetricContainer,
                 stateBackend,
@@ -78,12 +85,48 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 outputMode);
         this.inputType = inputType;
         this.outputType = outputType;
-        this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;
+        this.functionUrn = functionUrn;
+        this.userDefinedDataStreamFunctions =
+                Preconditions.checkNotNull(userDefinedDataStreamFunctions);
+
+        // reverse the list since the last one is the head operator of the operation tree
+        Collections.reverse(this.userDefinedDataStreamFunctions);
     }
 
-    @Override
-    protected byte[] getUserDefinedFunctionsProtoBytes() {
-        return this.userDefinedDataStreamFunction.toByteArray();
+    public static BeamDataStreamPythonFunctionRunner of(
+            String taskName,
+            PythonEnvironmentManager environmentManager,
+            TypeInformation<?> inputType,
+            TypeInformation<?> outputType,
+            String functionUrn,
+            List<FlinkFnApi.UserDefinedDataStreamFunction> userDefinedDataStreamFunctions,
+            Map<String, String> jobOptions,
+            @Nullable FlinkMetricContainer flinkMetricContainer,
+            KeyedStateBackend<?> stateBackend,
+            TypeSerializer<?> keySerializer,
+            TypeSerializer<?> namespaceSerializer,
+            MemoryManager memoryManager,
+            double managedMemoryFraction,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
+        return new BeamDataStreamPythonFunctionRunner(
+                taskName,
+                environmentManager,
+                inputType,
+                outputType,
+                functionUrn,
+                userDefinedDataStreamFunctions,
+                jobOptions,
+                flinkMetricContainer,
+                stateBackend,
+                keySerializer,
+                namespaceSerializer,
+                memoryManager,
+                managedMemoryFraction,
+                inputDataType,
+                outputDataType,
+                outputMode);
     }
 
     @Override
@@ -97,7 +140,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
     }
 
     private RunnerApi.Coder getInputOutputCoderProto(
-            TypeInformation typeInformation, FlinkFnApi.CoderParam.DataType dataType) {
+            TypeInformation<?> typeInformation, FlinkFnApi.CoderParam.DataType dataType) {
         FlinkFnApi.CoderParam.Builder coderParamBuilder = FlinkFnApi.CoderParam.newBuilder();
         FlinkFnApi.TypeInfo typeinfo =
                 PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(typeInformation);
@@ -114,5 +157,40 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                                                 coderParamBuilder.build().toByteArray()))
                                 .build())
                 .build();
+    }
+
+    @Override
+    protected Map<String, RunnerApi.PTransform> getTransforms() {
+        Map<String, RunnerApi.PTransform> transforms = new HashMap<>();
+        for (int i = 0; i < userDefinedDataStreamFunctions.size(); i++) {
+            RunnerApi.PTransform.Builder transformBuilder =
+                    RunnerApi.PTransform.newBuilder()
+                            .setUniqueName(TRANSFORM_ID_PREFIX + i)
+                            .setSpec(
+                                    RunnerApi.FunctionSpec.newBuilder()
+                                            .setUrn(functionUrn)
+                                            .setPayload(
+                                                    org.apache.beam.vendor.grpc.v1p26p0.com.google
+                                                            .protobuf.ByteString.copyFrom(
+                                                            userDefinedDataStreamFunctions
+                                                                    .get(i)
+                                                                    .toByteArray()))
+                                            .build());
+
+            // build inputs
+            if (i == 0) {
+                transformBuilder.putInputs(MAIN_INPUT_NAME, INPUT_ID);
+            } else {
+                transformBuilder.putInputs(MAIN_INPUT_NAME, COLLECTION_PREFIX + (i - 1));
+            }
+
+            // build outputs
+            if (i == userDefinedDataStreamFunctions.size() - 1) {
+                transformBuilder.putOutputs(MAIN_OUTPUT_NAME, OUTPUT_ID);
+            } else {
+                transformBuilder.putOutputs(MAIN_OUTPUT_NAME, COLLECTION_PREFIX + i);
+            }
+        }
+        return transforms;
     }
 }

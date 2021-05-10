@@ -25,7 +25,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
-import org.apache.flink.table.runtime.utils.PassThroughPythonTableFunctionRunner;
+import org.apache.flink.table.runtime.utils.PassThroughPythonTableBeamFunctionRunner;
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -101,7 +101,7 @@ public class RowDataPythonTableFunctionOperatorTest
 
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
-            return new PassThroughPythonTableFunctionRunner(
+            return new PassThroughPythonTableBeamFunctionRunner(
                     getRuntimeContext().getTaskName(),
                     PythonTestUtils.createTestEnvironmentManager(),
                     userDefinedFunctionInputType,

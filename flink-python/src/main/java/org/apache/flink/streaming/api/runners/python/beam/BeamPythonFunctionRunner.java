@@ -108,6 +108,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.setCurrentKeyForStreaming;
@@ -119,12 +120,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     private static final String PYTHON_STATE_PREFIX = "python-state-";
 
-    private static final String INPUT_ID = "input";
-    private static final String OUTPUT_ID = "output";
-    private static final String TRANSFORM_ID = "transform";
+    public static final String INPUT_ID = "input";
+    public static final String OUTPUT_ID = "output";
 
-    private static final String MAIN_INPUT_NAME = "input";
-    private static final String MAIN_OUTPUT_NAME = "output";
+    public static final String MAIN_INPUT_NAME = "input";
+    public static final String MAIN_OUTPUT_NAME = "output";
 
     private static final String INPUT_CODER_ID = "input_coder";
     private static final String OUTPUT_CODER_ID = "output_coder";
@@ -148,8 +148,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     /** The Python execution environment manager. */
     private final PythonEnvironmentManager environmentManager;
-
-    private final String functionUrn;
 
     /** The options used to configure the Python worker process. */
     private final Map<String, String> jobOptions;
@@ -205,7 +203,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     public BeamPythonFunctionRunner(
             String taskName,
             PythonEnvironmentManager environmentManager,
-            String functionUrn,
             Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             @Nullable KeyedStateBackend keyedStateBackend,
@@ -218,7 +215,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             FlinkFnApi.CoderParam.OutputMode outputMode) {
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
-        this.functionUrn = Preconditions.checkNotNull(functionUrn);
         this.jobOptions = Preconditions.checkNotNull(jobOptions);
         this.flinkMetricContainer = flinkMetricContainer;
         this.stateRequestHandler =
@@ -455,7 +451,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     @SuppressWarnings("unchecked")
     private ExecutableStage createExecutableStage(RunnerApi.Environment environment)
             throws Exception {
-        RunnerApi.Components components =
+        RunnerApi.Components.Builder componentsBuilder =
                 RunnerApi.Components.newBuilder()
                         .putPcollections(
                                 INPUT_ID,
@@ -469,22 +465,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                         .setWindowingStrategyId(WINDOW_STRATEGY)
                                         .setCoderId(OUTPUT_CODER_ID)
                                         .build())
-                        .putTransforms(
-                                TRANSFORM_ID,
-                                RunnerApi.PTransform.newBuilder()
-                                        .setUniqueName(TRANSFORM_ID)
-                                        .setSpec(
-                                                RunnerApi.FunctionSpec.newBuilder()
-                                                        .setUrn(functionUrn)
-                                                        .setPayload(
-                                                                org.apache.beam.vendor.grpc.v1p26p0
-                                                                        .com.google.protobuf
-                                                                        .ByteString.copyFrom(
-                                                                        getUserDefinedFunctionsProtoBytes()))
-                                                        .build())
-                                        .putInputs(MAIN_INPUT_NAME, INPUT_ID)
-                                        .putOutputs(MAIN_OUTPUT_NAME, OUTPUT_ID)
-                                        .build())
                         .putWindowingStrategies(
                                 WINDOW_STRATEGY,
                                 RunnerApi.WindowingStrategy.newBuilder()
@@ -492,8 +472,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                         .build())
                         .putCoders(INPUT_CODER_ID, getInputCoderProto())
                         .putCoders(OUTPUT_CODER_ID, getOutputCoderProto())
-                        .putCoders(WINDOW_CODER_ID, getWindowCoderProto())
-                        .build();
+                        .putCoders(WINDOW_CODER_ID, getWindowCoderProto());
+
+        getTransforms().forEach(componentsBuilder::putTransforms);
+        RunnerApi.Components components = componentsBuilder.build();
 
         PipelineNode.PCollectionNode input =
                 PipelineNode.pCollection(INPUT_ID, components.getPcollectionsOrThrow(INPUT_ID));
@@ -501,9 +483,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         List<UserStateReference> userStates = Collections.EMPTY_LIST;
         List<TimerReference> timers = Collections.EMPTY_LIST;
         List<PipelineNode.PTransformNode> transforms =
-                Collections.singletonList(
-                        PipelineNode.pTransform(
-                                TRANSFORM_ID, components.getTransformsOrThrow(TRANSFORM_ID)));
+                components.getTransformsMap().keySet().stream()
+                        .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))
+                        .collect(Collectors.toList());
         List<PipelineNode.PCollectionNode> outputs =
                 Collections.singletonList(
                         PipelineNode.pCollection(
@@ -546,11 +528,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         .build());
     }
 
-    protected abstract byte[] getUserDefinedFunctionsProtoBytes();
-
     protected abstract RunnerApi.Coder getInputCoderProto();
 
     protected abstract RunnerApi.Coder getOutputCoderProto();
+
+    protected abstract Map<String, RunnerApi.PTransform> getTransforms();
 
     /** Gets the proto representation of the window coder. */
     private RunnerApi.Coder getWindowCoderProto() {
