@@ -262,7 +262,7 @@ class AggregateFunctionRowCoderImpl(StreamCoderImpl):
         return 'AggregateFunctionRowCoderImpl[%s]' % repr(self._flatten_row_coder)
 
 
-class BasicArrayCoderImpl(StreamCoderImpl):
+class GenericArrayCoderImpl(StreamCoderImpl):
 
     def __init__(self, elem_coder):
         self._elem_coder = elem_coder
@@ -283,7 +283,7 @@ class BasicArrayCoderImpl(StreamCoderImpl):
         return elements
 
     def __repr__(self):
-        return 'BasicArrayCoderImpl[%s]' % repr(self._elem_coder)
+        return 'GenericArrayCoderImpl[%s]' % repr(self._elem_coder)
 
 
 class PrimitiveArrayCoderImpl(StreamCoderImpl):

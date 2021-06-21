@@ -224,7 +224,7 @@ cdef class TimestampCoderImpl(FieldCoder):
 cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cdef readonly object timezone
 
-cdef class BasicArrayCoderImpl(FieldCoder):
+cdef class GenericArrayCoderImpl(FieldCoder):
     cdef readonly FieldCoder elem_coder
 
 cdef class PrimitiveArrayCoderImpl(FieldCoder):
