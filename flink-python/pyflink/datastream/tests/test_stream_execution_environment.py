@@ -416,7 +416,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         t_env = StreamTableEnvironment.create(
             stream_execution_environment=self.env,
-            environment_settings=EnvironmentSettings.in_streaming_mode())
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
         self.env.add_python_file(python_file_path)
 
         from pyflink.table.udf import udf
