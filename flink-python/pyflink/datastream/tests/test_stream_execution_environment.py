@@ -37,7 +37,8 @@ from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.pyflink_gateway_server import on_windows
-from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment
+from pyflink.table import DataTypes, CsvTableSource, CsvTableSink, StreamTableEnvironment, \
+    EnvironmentSettings
 from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
 
 
@@ -362,15 +363,9 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
             from test_dep1 import add_two
             return add_two(value)
 
-        get_j_env_configuration(self.env._j_stream_execution_environment).\
-            setString("taskmanager.numberOfTaskSlots", "10")
         self.env.add_python_file(python_file_path)
         ds = self.env.from_collection([1, 2, 3, 4, 5])
-        ds = ds.map(plus_two_map, Types.LONG()) \
-               .slot_sharing_group("data_stream") \
-               .map(lambda i: i, Types.LONG()) \
-               .slot_sharing_group("table")
-
+        ds = ds.map(plus_two_map)
         python_file_path = os.path.join(python_file_dir, "test_dep2.py")
         with open(python_file_path, 'w') as f:
             f.write("def add_three(a):\n    return a + 3")
