@@ -365,7 +365,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.env.add_python_file(python_file_path)
         ds = self.env.from_collection([1, 2, 3, 4, 5])
-        ds = ds.map(plus_two_map)
+        ds = ds.map(plus_two_map, Types.LONG())
         python_file_path = os.path.join(python_file_dir, "test_dep2.py")
         with open(python_file_path, 'w') as f:
             f.write("def add_three(a):\n    return a + 3")
