@@ -39,11 +39,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@link BeamDataStreamPythonFunctionRunner} is responsible for starting a beam python harness to
+ * {@link DataStreamBeamPythonFunctionRunner} is responsible for starting a beam python harness to
  * execute user defined python function.
  */
 @Internal
-public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner {
+public class DataStreamBeamPythonFunctionRunner extends BeamPythonFunctionRunner {
 
     private static final String TRANSFORM_ID_PREFIX = "transform-";
     private static final String COLLECTION_PREFIX = "collection-";
@@ -53,7 +53,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
     private final String functionUrn;
     private final List<FlinkFnApi.UserDefinedDataStreamFunction> userDefinedDataStreamFunctions;
 
-    private BeamDataStreamPythonFunctionRunner(
+    private DataStreamBeamPythonFunctionRunner(
             String taskName,
             PythonEnvironmentManager environmentManager,
             TypeInformation<?> inputType,
@@ -93,7 +93,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
         Collections.reverse(this.userDefinedDataStreamFunctions);
     }
 
-    public static BeamDataStreamPythonFunctionRunner of(
+    public static DataStreamBeamPythonFunctionRunner of(
             String taskName,
             PythonEnvironmentManager environmentManager,
             TypeInformation<?> inputType,
@@ -110,7 +110,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             FlinkFnApi.CoderParam.DataType inputDataType,
             FlinkFnApi.CoderParam.DataType outputDataType,
             FlinkFnApi.CoderParam.OutputMode outputMode) {
-        return new BeamDataStreamPythonFunctionRunner(
+        return new DataStreamBeamPythonFunctionRunner(
                 taskName,
                 environmentManager,
                 inputType,

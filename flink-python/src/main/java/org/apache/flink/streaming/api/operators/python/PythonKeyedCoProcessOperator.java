@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.DataStreamBeamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.api.utils.input.KeyedTwoInputWithTimerRowFactory;
@@ -92,7 +92,7 @@ public class PythonKeyedCoProcessOperator<OUT>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-        return BeamDataStreamPythonFunctionRunner.of(
+        return DataStreamBeamPythonFunctionRunner.of(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 getRunnerInputTypeInfo(),

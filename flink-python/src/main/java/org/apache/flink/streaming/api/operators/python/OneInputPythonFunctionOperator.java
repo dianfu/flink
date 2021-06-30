@@ -30,7 +30,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.DataStreamBeamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -133,7 +133,7 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-        return BeamDataStreamPythonFunctionRunner.of(
+        return DataStreamBeamPythonFunctionRunner.of(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 runnerInputTypeInfo,

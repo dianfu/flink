@@ -40,7 +40,7 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
-import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.runners.python.beam.DataStreamBeamPythonFunctionRunner;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.api.utils.input.KeyedInputWithTimerRowFactory;
@@ -92,10 +92,10 @@ public class PythonKeyedProcessOperator<OUT>
     private transient TypeInformation<Row> runnerOutputTypeInfo;
 
     /** Serializer to serialize input data for python worker. */
-    private transient TypeSerializer runnerInputSerializer;
+    private transient TypeSerializer<Row> runnerInputSerializer;
 
     /** Serializer to deserialize output data from python worker. */
-    private transient TypeSerializer runnerOutputSerializer;
+    private transient TypeSerializer<Row> runnerOutputSerializer;
 
     /** Serializer for current key. */
     private transient TypeSerializer keyTypeSerializer;
@@ -212,7 +212,7 @@ public class PythonKeyedProcessOperator<OUT>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-        return BeamDataStreamPythonFunctionRunner.of(
+        return DataStreamBeamPythonFunctionRunner.of(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 runnerInputTypeInfo,
@@ -221,7 +221,7 @@ public class PythonKeyedProcessOperator<OUT>
                 PythonOperatorUtils.getUserDefinedDataStreamStatefulFunctionProto(
                         pythonFunctionInfo,
                         getRuntimeContext(),
-                        Collections.EMPTY_MAP,
+                        Collections.emptyMap(),
                         keyTypeInfo,
                         inBatchExecutionMode(getKeyedStateBackend())),
                 jobOptions,
