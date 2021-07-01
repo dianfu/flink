@@ -33,7 +33,7 @@ from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.fn_execution.datastream.timerservice_impl import (
     InternalTimerImpl, TimerServiceImpl, InternalTimerServiceImpl, NonKeyedTimerServiceImpl)
 from pyflink.fn_execution.datastream.input_handler import InputHandler
-from pyflink.fn_execution.datastream.output_factory import RowWithTimerOutputFactory
+from pyflink.fn_execution.datastream.output_factory import OutputHandler
 from pyflink.metrics.metricbase import GenericMetricGroup
 
 
@@ -219,7 +219,7 @@ def extract_stateful_function(user_defined_function_proto,
         timer_service = TimerServiceImpl(internal_timer_service)
         ctx = InternalKeyedProcessFunctionContext(timer_service)
         on_timer_ctx = InternalKeyedProcessFunctionOnTimerContext(timer_service)
-        output_factory = RowWithTimerOutputFactory(VoidNamespaceSerializer())
+        output_factory = OutputHandler(VoidNamespaceSerializer())
         process_function = user_defined_func
 
         def open_func():
@@ -298,7 +298,7 @@ def extract_stateful_function(user_defined_function_proto,
             internal_window_function,
             window_trigger,
             allowed_lateness)
-        output_factory = RowWithTimerOutputFactory(window_serializer)
+        output_factory = OutputHandler(window_serializer)
 
         def open_func():
             window_operator.open(runtime_context, internal_timer_service)

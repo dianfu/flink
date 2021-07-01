@@ -22,7 +22,7 @@ from enum import Enum
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.timerservice_impl import (
     InternalTimerImpl, InternalTimerServiceImpl)
-from pyflink.fn_execution.datastream.output_factory import RowWithTimerOutputFactory
+from pyflink.fn_execution.datastream.output_factory import OutputHandler
 
 
 class RunnerInputType(Enum):
@@ -42,7 +42,7 @@ class InputHandler(ABC):
 
     def __init__(self,
                  internal_timer_service: InternalTimerServiceImpl,
-                 output_factory: RowWithTimerOutputFactory,
+                 output_factory: OutputHandler,
                  process_element_func,
                  on_event_time_func,
                  on_processing_time_func,
