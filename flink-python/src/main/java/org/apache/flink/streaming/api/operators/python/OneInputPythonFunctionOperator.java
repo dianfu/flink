@@ -182,11 +182,11 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
         emitResults();
     }
 
-    public Map<String, String> getInternalParameters() {
-        return Collections.EMPTY_MAP;
+    public String getFunctionUrn() {
+        return STATELESS_FUNCTION_URN;
     }
 
-    private String getFunctionUrn() {
-        return STATELESS_FUNCTION_URN;
+    public Map<String, String> getInternalParameters() {
+        return Collections.EMPTY_MAP;
     }
 }
