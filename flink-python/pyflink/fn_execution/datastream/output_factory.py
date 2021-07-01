@@ -22,8 +22,8 @@ from typing import List, Tuple, Iterable
 
 from pyflink.common import Row
 from pyflink.common.serializer import TypeSerializer
-from pyflink.datastream.timerservice import InternalTimer
-from pyflink.fn_execution.timerservice_impl import TimerOperandType
+from pyflink.fn_execution.datastream.timerservice import InternalTimer
+from pyflink.fn_execution.datastream.timerservice_impl import TimerOperandType
 
 
 class RunnerOutputType(Enum):
