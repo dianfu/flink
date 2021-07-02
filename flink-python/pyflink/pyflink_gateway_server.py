@@ -207,7 +207,7 @@ def launch_gateway_server_process(env, args):
         classpath = os.pathsep.join([classpath, construct_test_classpath()])
     program_args = construct_program_args(args)
     if program_args.cluster_type == "local":
-        command = [java_executable] + log_settings + ["-cp", classpath, program_args.main_class] \
+        command = [java_executable, "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"] + log_settings + ["-cp", classpath, program_args.main_class] \
             + program_args.other_args
     else:
         command = [os.path.join(env["FLINK_BIN_DIR"], "flink"), "run"] + program_args.other_args \
