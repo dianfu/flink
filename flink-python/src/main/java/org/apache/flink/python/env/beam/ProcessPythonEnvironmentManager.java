@@ -40,11 +40,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -319,8 +321,7 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
     private void constructArchivesDirectory(Map<String, String> env) throws IOException {
         if (!dependencyInfo.getArchives().isEmpty()) {
             // set the archives directory as the working directory, then user could access the
-            // content of the archives
-            // via relative path
+            // content of the archives via relative path
             env.put(PYTHON_WORKING_DIR, archivesDirectory);
             LOG.info("Python working dir of python worker: {}", archivesDirectory);
 
@@ -328,16 +329,25 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
             for (Map.Entry<String, String> entry : dependencyInfo.getArchives().entrySet()) {
                 String srcFilePath = entry.getKey();
                 String targetDirPath =
-                        String.join(File.separator, archivesDirectory, entry.getValue());
-                if (hasOneOfSuffixes(srcFilePath, ".zip", ".jar")) {
+                        String.join(
+                                File.separator,
+                                archivesDirectory,
+                                new String(
+                                        Base64.getDecoder().decode(entry.getValue().split("#")[0]),
+                                        StandardCharsets.UTF_8));
+                String originalFileName =
+                        new String(
+                                Base64.getDecoder().decode(entry.getValue().split("#")[1]),
+                                StandardCharsets.UTF_8);
+                if (hasOneOfSuffixes(originalFileName, ".zip", ".jar")) {
                     DecompressUtils.extractZipFileWithPermissions(srcFilePath, targetDirPath);
-                } else if (hasOneOfSuffixes(srcFilePath, ".tar", ".tar.gz", ".tgz")) {
+                } else if (hasOneOfSuffixes(originalFileName, ".tar", ".tar.gz", ".tgz")) {
                     DecompressUtils.extractTarFile(srcFilePath, targetDirPath);
                 } else {
                     throw new IllegalArgumentException(
                             String.format(
                                     "Only zip, jar, tar, tgz and tar.gz suffixes are supported, found %s",
-                                    srcFilePath));
+                                    originalFileName));
                 }
             }
         }

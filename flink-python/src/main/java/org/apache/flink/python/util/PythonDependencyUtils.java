@@ -36,6 +36,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -254,7 +255,19 @@ public class PythonDependencyUtils {
                     generateUniqueFileKey(
                             PYTHON_ARCHIVE_PREFIX, archivePath + PARAM_DELIMITER + targetDir);
             registerCachedFileIfNotExist(archivePath, fileKey);
-            internalConfig.get(PYTHON_ARCHIVES).put(fileKey, targetDir);
+            internalConfig
+                    .get(PYTHON_ARCHIVES)
+                    .put(
+                            fileKey,
+                            Base64.getEncoder()
+                                            .encodeToString(
+                                                    targetDir.getBytes(StandardCharsets.UTF_8))
+                                    + "#"
+                                    + Base64.getEncoder()
+                                            .encodeToString(
+                                                    new File(archivePath)
+                                                            .getName()
+                                                            .getBytes(StandardCharsets.UTF_8)));
         }
 
         private void configure(ReadableConfig config) {
