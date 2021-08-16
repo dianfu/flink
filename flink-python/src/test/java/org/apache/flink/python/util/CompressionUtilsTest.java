@@ -38,8 +38,8 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for {@link DecompressUtils}. */
-public class DecompressUtilsTest {
+/** Tests for {@link CompressionUtils}. */
+public class CompressionUtilsTest {
 
     private static final int S_IFLNK = 40960;
 
@@ -73,7 +73,7 @@ public class DecompressUtilsTest {
         }
 
         String targetPath = temporaryFolder.newFolder().getCanonicalPath();
-        DecompressUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
+        CompressionUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
         Path softLink = new File(targetPath, "softlink").toPath();
         assertTrue(Files.isSymbolicLink(softLink));
         assertTrue(Files.readSymbolicLink(softLink).toString().endsWith("zipFile1"));
@@ -101,7 +101,7 @@ public class DecompressUtilsTest {
         }
 
         String targetPath = temporaryFolder.newFolder().getCanonicalPath();
-        DecompressUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
+        CompressionUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
         Path softLink = new File(targetPath, "softlink").toPath();
         assertTrue(Files.isSymbolicLink(softLink));
         assertTrue(Files.readSymbolicLink(softLink).toString().endsWith("targetFile"));
@@ -122,7 +122,7 @@ public class DecompressUtilsTest {
 
         String targetPath = temporaryFolder.newFolder().getCanonicalPath();
         try {
-            DecompressUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
+            CompressionUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
             Assert.fail("exception expected");
         } catch (IOException e) {
             assertTrue(e.getMessage().contains("Expand ../zipFile would create a file outside of"));
@@ -144,7 +144,7 @@ public class DecompressUtilsTest {
         }
 
         String targetPath = temporaryFolder.newFolder().getCanonicalPath();
-        DecompressUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
+        CompressionUtils.extractZipFileWithPermissions(zipFile.getCanonicalPath(), targetPath);
 
         Path path = new File(targetPath, "zipFile").toPath();
         assertEquals(0355, toUnixMode(Files.getPosixFilePermissions(path)));

@@ -24,7 +24,7 @@ import org.apache.flink.python.env.ProcessPythonEnvironment;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.PythonEnvironmentManager;
-import org.apache.flink.python.util.DecompressUtils;
+import org.apache.flink.python.util.CompressionUtils;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -40,19 +40,19 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
+
+import static org.apache.flink.python.util.PythonDependencyUtils.PARAM_DELIMITER;
 
 /**
  * The ProcessPythonEnvironmentManager is used to prepare the working dir of python UDF worker and
@@ -328,27 +328,21 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
             // extract archives to archives directory
             for (Map.Entry<String, String> entry : dependencyInfo.getArchives().entrySet()) {
                 String srcFilePath = entry.getKey();
-                String targetDirPath =
-                        String.join(
-                                File.separator,
-                                archivesDirectory,
-                                new String(
-                                        Base64.getDecoder().decode(entry.getValue().split("#")[0]),
-                                        StandardCharsets.UTF_8));
-                String originalFileName =
-                        new String(
-                                Base64.getDecoder().decode(entry.getValue().split("#")[1]),
-                                StandardCharsets.UTF_8);
-                if (hasOneOfSuffixes(originalFileName, ".zip", ".jar")) {
-                    DecompressUtils.extractZipFileWithPermissions(srcFilePath, targetDirPath);
-                } else if (hasOneOfSuffixes(originalFileName, ".tar", ".tar.gz", ".tgz")) {
-                    DecompressUtils.extractTarFile(srcFilePath, targetDirPath);
+
+                String originalFileName;
+                String targetDirName;
+                if (entry.getValue().contains(PARAM_DELIMITER)) {
+                    String[] filePathAndTargetDir = entry.getValue().split(PARAM_DELIMITER, 2);
+                    originalFileName = filePathAndTargetDir[0];
+                    targetDirName = filePathAndTargetDir[1];
                 } else {
-                    throw new IllegalArgumentException(
-                            String.format(
-                                    "Only zip, jar, tar, tgz and tar.gz suffixes are supported, found %s",
-                                    originalFileName));
+                    originalFileName = entry.getValue();
+                    targetDirName = originalFileName;
                 }
+
+                String targetDirPath =
+                        String.join(File.separator, archivesDirectory, targetDirName);
+                CompressionUtils.extractFile(srcFilePath, targetDirPath, originalFileName);
             }
         }
     }
@@ -435,15 +429,5 @@ public final class ProcessPythonEnvironmentManager implements PythonEnvironmentM
                 "Could not find a unique directory name in '"
                         + Arrays.toString(tmpDirectories)
                         + "' for storing the generated files of python dependency.");
-    }
-
-    private static boolean hasOneOfSuffixes(String filePath, String... suffixes) {
-        String lowercaseFilePath = filePath.toLowerCase();
-        for (String suffix : suffixes) {
-            if (lowercaseFilePath.endsWith(suffix)) {
-                return true;
-            }
-        }
-        return false;
     }
 }

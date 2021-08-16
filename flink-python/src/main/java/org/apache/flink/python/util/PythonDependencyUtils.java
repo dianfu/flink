@@ -36,7 +36,6 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -243,31 +242,16 @@ public class PythonDependencyUtils {
          * @param archivePath The path of the archive file.
          * @param targetDir The name of the target directory.
          */
-        private void addPythonArchive(String archivePath, @Nullable String targetDir) {
+        private void addPythonArchive(String archivePath, String targetDir) {
             Preconditions.checkNotNull(archivePath);
             if (!internalConfig.contains(PYTHON_ARCHIVES)) {
                 internalConfig.set(PYTHON_ARCHIVES, new HashMap<>());
-            }
-            if (targetDir == null) {
-                targetDir = new File(archivePath).getName();
             }
             String fileKey =
                     generateUniqueFileKey(
                             PYTHON_ARCHIVE_PREFIX, archivePath + PARAM_DELIMITER + targetDir);
             registerCachedFileIfNotExist(archivePath, fileKey);
-            internalConfig
-                    .get(PYTHON_ARCHIVES)
-                    .put(
-                            fileKey,
-                            Base64.getEncoder()
-                                            .encodeToString(
-                                                    targetDir.getBytes(StandardCharsets.UTF_8))
-                                    + "#"
-                                    + Base64.getEncoder()
-                                            .encodeToString(
-                                                    new File(archivePath)
-                                                            .getName()
-                                                            .getBytes(StandardCharsets.UTF_8)));
+            internalConfig.get(PYTHON_ARCHIVES).put(fileKey, targetDir);
         }
 
         private void configure(ReadableConfig config) {
@@ -302,10 +286,13 @@ public class PythonDependencyUtils {
                                         String[] filePathAndTargetDir =
                                                 archive.split(PARAM_DELIMITER, 2);
                                         archivePath = filePathAndTargetDir[0];
-                                        targetDir = filePathAndTargetDir[1];
+                                        targetDir =
+                                                new File(archivePath).getName()
+                                                        + PARAM_DELIMITER
+                                                        + filePathAndTargetDir[1];
                                     } else {
                                         archivePath = archive;
-                                        targetDir = null;
+                                        targetDir = new File(archivePath).getName();
                                     }
                                     addPythonArchive(archivePath, targetDir);
                                 }

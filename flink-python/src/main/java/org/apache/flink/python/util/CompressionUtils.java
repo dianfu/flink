@@ -27,6 +27,8 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -49,7 +51,23 @@ import java.util.Set;
  * possible.
  */
 @Internal
-public class DecompressUtils {
+public class CompressionUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CompressionUtils.class);
+
+    public static void extractFile(
+            String srcFilePath, String targetDirPath, String originalFileName) throws IOException {
+        if (hasOneOfSuffixes(originalFileName, ".zip", ".jar")) {
+            extractZipFileWithPermissions(srcFilePath, targetDirPath);
+        } else if (hasOneOfSuffixes(originalFileName, ".tar", ".tar.gz", ".tgz")) {
+            extractTarFile(srcFilePath, targetDirPath);
+        } else {
+            LOG.warn(
+                    "Only zip, jar, tar, tgz and tar.gz suffixes are supported, found {}. Trying to extract it as zip file.",
+                    originalFileName);
+            extractZipFileWithPermissions(srcFilePath, targetDirPath);
+        }
+    }
 
     public static void extractTarFile(String inFilePath, String targetDirPath) throws IOException {
         final File targetDir = new File(targetDirPath);
@@ -252,5 +270,15 @@ public class DecompressUtils {
         if ((mode & 1L << pos) != 0L) {
             posixFilePermissions.add(posixFilePermissionToAdd);
         }
+    }
+
+    private static boolean hasOneOfSuffixes(String filePath, String... suffixes) {
+        String lowercaseFilePath = filePath.toLowerCase();
+        for (String suffix : suffixes) {
+            if (lowercaseFilePath.endsWith(suffix)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
