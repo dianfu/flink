@@ -44,6 +44,8 @@ def is_launch_gateway_disabled():
 
 def get_gateway():
     # type: () -> JavaGateway
+    if "SPHINXOPTS" in os.environ:
+        return None
     global _gateway
     global _lock
     with _lock:
