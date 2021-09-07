@@ -77,6 +77,8 @@ if __name__ == "__main__":
     logging.info("Initializing python harness: %s" % " ".join(sys.argv))
 
     if 'PYFLINK_LOOPBACK_SERVER_ADDRESS' in os.environ:
+        logging.info("Starting up python harness in loopback mode.")
+
         params = dict(os.environ)
         params.update({'SEMI_PERSISTENT_DIRECTORY': semi_persist_dir})
         with grpc.insecure_channel(os.environ['PYFLINK_LOOPBACK_SERVER_ADDRESS']) as channel:
@@ -87,6 +89,7 @@ if __name__ == "__main__":
                 params=params)
             client.StartWorker(request)
     else:
+        logging.info("Starting up python harness in a standalone process.")
         metadata = [("worker_id", worker_id)]
 
         # read job information from provision stub
@@ -108,6 +111,7 @@ if __name__ == "__main__":
         env = dict(os.environ)
 
         if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
+            logging.info("Shut down python harness due to FLINK_BOOT_TESTING is set.")
             exit(0)
 
         call([python_exec, "-m", "pyflink.fn_execution.beam.beam_sdk_worker_main"],
