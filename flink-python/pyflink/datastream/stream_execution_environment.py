@@ -142,7 +142,8 @@ class StreamExecutionEnvironment(object):
         """
         return self._j_stream_execution_environment.getMaxParallelism()
 
-    def set_runtime_mode(self, execution_mode: RuntimeExecutionMode):
+    def set_runtime_mode(self, execution_mode: RuntimeExecutionMode) \
+            -> 'StreamExecutionEnvironment':
         """
         Sets the runtime execution mode for the application
         :class:`~pyflink.datastream.execution_mode.RuntimeExecutionMode`. This
@@ -159,8 +160,9 @@ class StreamExecutionEnvironment(object):
 
         .. versionadded:: 1.13.0
         """
-        return self._j_stream_execution_environment.setRuntimeMode(
+        self._j_stream_execution_environment.setRuntimeMode(
             execution_mode._to_j_execution_mode())
+        return self
 
     def set_buffer_timeout(self, timeout_millis: int) -> 'StreamExecutionEnvironment':
         """
