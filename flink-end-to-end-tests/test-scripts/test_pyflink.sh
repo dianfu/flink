@@ -26,6 +26,7 @@ CONFLUENT_MAJOR_VERSION="5.2"
 KAFKA_SQL_VERSION="universal"
 SQL_JARS_DIR=${END_TO_END_DIR}/flink-sql-client-test/target/sql-jars
 KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka" )
+FLINK_PYTHON_JAR=$(basename "${FLINK_DIR}"/opt/flink-python*.jar)
 
 function create_data_stream_kafka_source {
     topicName="test-python-data-stream-source"
@@ -144,6 +145,7 @@ PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     -pyreq "${REQUIREMENTS_PATH}" \
     -pyarch "${TEST_DATA_DIR}/venv.zip" \
     -pyexec "venv.zip/.conda/bin/python" \
+    pipeline.classpaths "file://${FLINK_PYTHON_JAR}"
     "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
 
 echo "Test batch python udf sql job:\n"
@@ -154,6 +156,7 @@ PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     -pyarch "${TEST_DATA_DIR}/venv.zip" \
     -pyexec "venv.zip/.conda/bin/python" \
     -c org.apache.flink.python.tests.BatchPythonUdfSqlJob \
+    pipeline.classpaths "file://${FLINK_PYTHON_JAR}"
     "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
 
 echo "Test using python udf in sql client:\n"
