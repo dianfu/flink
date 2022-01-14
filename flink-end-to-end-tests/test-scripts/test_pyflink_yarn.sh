@@ -59,6 +59,7 @@ FLINK_PYTHON_JAR=$(basename "${FLINK_DIR}"/opt/flink-python*.jar)
 
 docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     export PYFLINK_CLIENT_EXECUTABLE=/tmp/.conda/bin/python && \
+    ls -R /home/hadoop-user/$FLINK_DIRNAME/ && \
     /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ytm 1500 -yjm 1000 \
     -pyfs /tmp/add_one.py \
     -pyreq /tmp/requirements.txt \
