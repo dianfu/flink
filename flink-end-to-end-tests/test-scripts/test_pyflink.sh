@@ -26,7 +26,7 @@ CONFLUENT_MAJOR_VERSION="5.2"
 KAFKA_SQL_VERSION="universal"
 SQL_JARS_DIR=${END_TO_END_DIR}/flink-sql-client-test/target/sql-jars
 KAFKA_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "kafka" )
-FLINK_PYTHON_JAR=$(basename "${FLINK_DIR}"/opt/flink-python*.jar)
+FLINK_PYTHON_JAR=$(find "$FLINK_DIR/opt" | grep "flink-python" )
 
 function create_data_stream_kafka_source {
     topicName="test-python-data-stream-source"
