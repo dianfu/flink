@@ -65,7 +65,7 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     -pyreq /tmp/requirements.txt \
     -pyarch /tmp/venv.zip \
     -pyexec venv.zip/.conda/bin/python \
-    -C file:///home/hadoop-user/$FLINK_DIRNAME/opt/${FLINK_PYTHON_JAR} \
+    -C file:/home/hadoop-user/$FLINK_DIRNAME/opt/${FLINK_PYTHON_JAR} \
     /tmp/PythonUdfSqlJobExample.jar"
 
 docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
@@ -76,5 +76,5 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     -pyarch /tmp/venv.zip \
     -pyexec venv.zip/.conda/bin/python \
     -py /tmp/python_job.py \
-    -C file:///home/hadoop-user/$FLINK_DIRNAME/opt/${FLINK_PYTHON_JAR} \
+    -C file:/home/hadoop-user/$FLINK_DIRNAME/opt/${FLINK_PYTHON_JAR} \
     pipeline.jars file:/tmp/PythonUdfSqlJobExample.jar"
