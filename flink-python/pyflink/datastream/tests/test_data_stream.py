@@ -794,6 +794,23 @@ class DataStreamTests(object):
         expected = ['(hi,1)', '(hi,1)', '(hi,2)', '(hi,3)']
         self.assert_equals_sorted(expected, results)
 
+    def test_session_window_late_merge(self):
+        data_stream = self.env.from_collection([
+            ('hi', 0), ('hi', 8), ('hi', 4)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(SimpleMergeTimeWindowAssigner()) \
+            .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_session_window_late_merge')
+        results = self.test_sink.get_results()
+        expected = ['(hi,3)']
+        self.assert_equals_sorted(expected, results)
+
 
 class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
     def test_data_stream_name(self):
@@ -1387,65 +1404,114 @@ class SumWindowFunction(WindowFunction[tuple, tuple, str, CountWindow]):
 
 class SimpleTimeWindowTrigger(Trigger[tuple, TimeWindow]):
 
+    def __init__(self, is_event_time: bool = True):
+        self._is_event_time = is_event_time
+        super().__init__()
+
     def on_element(self,
                    element: tuple,
                    timestamp: int,
                    window: TimeWindow,
                    ctx: 'Trigger.TriggerContext') -> TriggerResult:
-        return TriggerResult.CONTINUE
+        if self._is_event_time:
+            if window.max_timestamp() <= ctx.get_current_watermark():
+                return TriggerResult.FIRE
+            else:
+                ctx.register_event_time_timer(window.max_timestamp())
+                return TriggerResult.CONTINUE
+        else:
+            ctx.register_processing_time_timer(window.max_timestamp())
+            return TriggerResult.CONTINUE
 
     def on_processing_time(self,
                            time: int,
                            window: TimeWindow,
                            ctx: 'Trigger.TriggerContext') -> TriggerResult:
-        return TriggerResult.CONTINUE
+        if self._is_event_time:
+            return TriggerResult.CONTINUE
+        else:
+            return TriggerResult.FIRE_AND_PURGE
 
     def on_event_time(self,
                       time: int,
                       window: TimeWindow,
                       ctx: 'Trigger.TriggerContext') -> TriggerResult:
-        if time >= window.max_timestamp():
-            return TriggerResult.FIRE_AND_PURGE
+        if self._is_event_time:
+            if time == window.max_timestamp():
+                return TriggerResult.FIRE_AND_PURGE
+            else:
+                return TriggerResult.CONTINUE
         else:
             return TriggerResult.CONTINUE
 
     def on_merge(self,
                  window: TimeWindow,
                  ctx: 'Trigger.OnMergeContext') -> None:
-        pass
+        window_max_timestamp = window.max_timestamp()
+        if self._is_event_time and window_max_timestamp > ctx.get_current_watermark():
+            ctx.register_event_time_timer(window_max_timestamp)
+        elif not self._is_event_time and window_max_timestamp > ctx.get_current_processing_time():
+            ctx.register_processing_time_timer(window_max_timestamp)
 
     def clear(self,
               window: TimeWindow,
               ctx: 'Trigger.TriggerContext') -> None:
-        pass
+        if self._is_event_time:
+            ctx.delete_event_time_timer(window.max_timestamp())
+        else:
+            ctx.delete_processing_time_timer(window.max_timestamp())
 
 
 class SimpleMergeTimeWindowAssigner(MergingWindowAssigner[tuple, TimeWindow]):
+
+    def __init__(self, gap: int, is_event_time: bool = True) -> None:
+        self.gap = gap
+        self._is_event_time = is_event_time
+        super().__init__()
 
     def merge_windows(self,
                       windows: Iterable[TimeWindow],
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-        for i in range(1, len(window_list)):
-            if window_list[i - 1].end > window_list[i].start:
-                callback.merge([window_list[i - 1], window_list[i]],
-                               TimeWindow(window_list[i - 1].start, window_list[i].end))
+        window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
+        current_merge_key = None  # type: TimeWindow
+        current_merge_set = set()  # type: Set[TimeWindow]
+
+        for window in window_list:
+            if current_merge_key is None:
+                current_merge_key = window
+                current_merge_set.add(window)
+            elif current_merge_key.intersects(window):
+                current_merge_key = current_merge_key.cover(window)
+                current_merge_set.add(window)
+            else:
+                window_merge_map[current_merge_key] = current_merge_set
+                current_merge_key = window
+                current_merge_set = set()
+                current_merge_set.add(window)
+
+        if current_merge_key is not None:
+            window_merge_map[current_merge_key] = current_merge_set
+
+        for merge_key, merge_set in window_merge_map.items():
+            if len(merge_set) > 1:
+                callback.merge(merge_set, merge_key)
 
     def assign_windows(self,
                        element: tuple,
                        timestamp: int,
                        context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
-        return [TimeWindow(timestamp, timestamp + 2)]
+        return [TimeWindow(timestamp, timestamp + self.gap)]
 
     def get_default_trigger(self, env) -> Trigger[tuple, TimeWindow]:
-        return SimpleTimeWindowTrigger()
+        return SimpleTimeWindowTrigger(self._is_event_time)
 
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()
 
     def is_event_time(self) -> bool:
-        return True
+        return self._is_event_time
 
 
 class CountWindowProcessFunction(ProcessWindowFunction[tuple, tuple, str, CountWindow]):
