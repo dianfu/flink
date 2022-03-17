@@ -88,7 +88,7 @@ public final class TimerRegistration {
             throws Exception {
         synchronized (keyedStateBackend) {
             keyContext.setCurrentKey(key);
-            PythonOperatorUtils.setCurrentKey(internalTimerService, key);
+            PythonOperatorUtils.setCurrentKeyForTimerService(internalTimerService, key);
             switch (operandType) {
                 case REGISTER_EVENT_TIMER:
                     internalTimerService.registerEventTimeTimer(namespace, timestamp);

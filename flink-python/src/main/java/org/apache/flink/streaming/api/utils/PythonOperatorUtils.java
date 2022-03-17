@@ -36,8 +36,8 @@ public class PythonOperatorUtils {
         }
     }
 
-    /** Set the current key for streaming operator. */
-    public static <K, N> void setCurrentKey(
+    /** Set the current key for the timer service. */
+    public static <K, N> void setCurrentKeyForTimerService(
             InternalTimerService<N> internalTimerService, K currentKey) throws Exception {
         if (internalTimerService instanceof BatchExecutionInternalTimeService) {
             ((BatchExecutionInternalTimeService<K, N>) internalTimerService)
