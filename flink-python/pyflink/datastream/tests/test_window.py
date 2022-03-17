@@ -203,7 +203,6 @@ class WindowTests(PyFlinkStreamingTestCase):
         self.assert_equals_sorted(expected, results)
 
     def test_session_window_late_merge(self):
-        self.env.set_parallelism(1)
         data_stream = self.env.from_collection([
             ('hi', 0), ('hi', 8), ('hi', 4)],
             type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
