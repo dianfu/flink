@@ -19,7 +19,7 @@ import datetime
 import decimal
 import os
 import uuid
-from typing import Collection, Iterable
+from typing import Collection, Iterable, Mapping, Set
 
 from pyflink.common import Row, Configuration
 from pyflink.common.time import Time
