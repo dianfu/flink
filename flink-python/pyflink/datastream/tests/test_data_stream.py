@@ -785,7 +785,7 @@ class DataStreamTests(object):
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            .window(SimpleMergeTimeWindowAssigner()) \
+            .window(SimpleMergeTimeWindowAssigner(2)) \
             .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
@@ -802,7 +802,7 @@ class DataStreamTests(object):
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            .window(SimpleMergeTimeWindowAssigner()) \
+            .window(SimpleMergeTimeWindowAssigner(2)) \
             .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
