@@ -1175,6 +1175,113 @@ class KeyedStream(DataStream):
         return self.process(FilterKeyedProcessFunctionAdapter(func), self._original_data_type_info)\
             .name("Filter")
 
+    class AccumulateType(Enum):
+        MIN = 1
+        MAX = 2
+        MIN_BY = 3
+        MAX_BY = 4
+        SUM = 5
+
+    def _accumulate(self, position: Union[int, str], acc_type: AccumulateType):
+        """
+        The base method is used for operators such as min, max, min_by, max_by, sum.
+        """
+        if not isinstance(position, int) and not isinstance(position, str):
+            raise TypeError("The field position must be of int or str type to locate the value to "
+                            "calculate for min, max, min_by, max_by and sum."
+                            "The given type is: %s" % type(position))
+
+        class AccumulateReduceFunction(ReduceFunction):
+
+            def __init__(self, position, agg_type):
+                self._pos = position
+                self._agg_type = agg_type
+                self._reduce_func = None
+
+            def reduce(self, value1, value2):
+
+                def init_reduce_func(value_to_check):
+                    if acc_type == KeyedStream.AccumulateType.MIN_BY:
+                        # Logic for min_by operator.
+                        def reduce_func(v1, v2):
+                            if isinstance(value_to_check, (tuple, list, Row)):
+                                return v2 if v2[self._pos] < v1[self._pos] else v1
+                            else:
+                                return v2 if v2 < v1 else v1
+                        self._reduce_func = reduce_func
+
+                    elif acc_type == KeyedStream.AccumulateType.MAX_BY:
+                        # Logic for max_by operator.
+                        def reduce_func(v1, v2):
+                            if isinstance(value_to_check, (tuple, list, Row)):
+                                return v2 if v2[self._pos] > v1[self._pos] else v1
+                            else:
+                                return v2 if v2 > v1 else v1
+                        self._reduce_func = reduce_func
+
+                    # for MIN / MAX / SUM
+                    elif isinstance(value_to_check, tuple):
+                        def reduce_func(v1, v2):
+                            v1_list = list(v1)
+                            if acc_type == KeyedStream.AccumulateType.MIN:
+                                # Logic for min operator with tuple type input.
+                                v1_list[self._pos] = v2[self._pos] \
+                                    if v2[self._pos] < v1[self._pos] else v1[self._pos]
+                            elif acc_type == KeyedStream.AccumulateType.MAX:
+                                # Logic for max operator with tuple type input.
+                                v1_list[self._pos] = v2[self._pos] \
+                                    if v2[self._pos] > v1[self._pos] else v1[self._pos]
+                            else:
+                                # Logic for sum operator with tuple type input.
+                                v1_list[self._pos] = v1[self._pos] + v2[self._pos]
+                                return tuple(v1_list)
+                            return tuple(v1_list)
+
+                        self._reduce_func = reduce_func
+
+                    elif isinstance(value_to_check, (list, Row)):
+                        def reduce_func(v1, v2):
+                            if acc_type == KeyedStream.AccumulateType.MIN:
+                                # Logic for min operator with List and Row types input.
+                                v1[self._pos] = v2[self._pos] \
+                                    if v2[self._pos] < v1[self._pos] else v1[self._pos]
+                            elif acc_type == KeyedStream.AccumulateType.MAX:
+                                # Logic for max operator with List and Row types input.
+                                v1[self._pos] = v2[self._pos] \
+                                    if v2[self._pos] > v1[self._pos] else v1[self._pos]
+                            else:
+                                # Logic for sum operator with List and Row types input.
+                                v1[self._pos] = v1[self._pos] + v2[self._pos]
+                            return v1
+
+                        self._reduce_func = reduce_func
+
+                    else:
+                        if self._pos != 0:
+                            raise TypeError(
+                                "The %s field selected on a basic type. A field expression "
+                                "on a basic type can only select the 0th field (which means "
+                                "selecting the entire basic type)." % self._pos)
+
+                        def reduce_func(v1, v2):
+                            if acc_type == KeyedStream.AccumulateType.MIN:
+                                # Logic for min operator with basic type input.
+                                return v2 if v2 < v1 else v1
+                            elif acc_type == KeyedStream.AccumulateType.MAX:
+                                # Logic for max operator with basic type input.
+                                return v2 if v2 > v1 else v1
+                            else:
+                                # Logic for sum operator with basic type input.
+                                return v1 + v2
+
+                        self._reduce_func = reduce_func
+
+                if not self._reduce_func:
+                    init_reduce_func(value2)
+                return self._reduce_func(value1, value2)
+
+        return self.reduce(AccumulateReduceFunction(position, acc_type))
+
     def sum(self, position_to_sum: Union[int, str] = 0) -> 'DataStream':
         """
         Applies an aggregation that gives a rolling sum of the data stream at the given position
@@ -1209,195 +1316,81 @@ class KeyedStream(DataStream):
 
         .. versionadded:: 1.16.0
         """
-        if not isinstance(position_to_sum, int) and not isinstance(position_to_sum, str):
-            raise TypeError("The field position must be of int or str type "
-                            "to locate the value to sum")
-
-        class SumReduceFunction(ReduceFunction):
-
-            def __init__(self, position_to_sum):
-                self._pos = position_to_sum
-                self._reduce_func = None
-
-            def reduce(self, value1, value2):
-                from numbers import Number
-
-                def init_reduce_func(value_to_check):
-                    if isinstance(value_to_check, tuple):
-                        def reduce_func(v1, v2):
-                            v1_list = list(v1)
-                            v1_list[self._pos] = v1[self._pos] + v2[self._pos]
-                            return tuple(v1_list)
-                        self._reduce_func = reduce_func
-                    elif isinstance(value_to_check, (list, Row)):
-                        def reduce_func(v1, v2):
-                            v1[self._pos] = v1[self._pos] + v2[self._pos]
-                            return v1
-                        self._reduce_func = reduce_func
-                    elif isinstance(value_to_check, Number):
-                        if self._pos != 0:
-                            raise TypeError(
-                                "The %s field selected on a basic type. A field expression on a "
-                                "basic type can only select the 0th field (which means selecting "
-                                "the entire basic type)." % self._pos)
-
-                        def reduce_func(v1, v2):
-                            return v1 + v2
-                        self._reduce_func = reduce_func
-                    else:
-                        raise TypeError("Sum operator only processes data of "
-                                        "Tuple, Row, List or Number type. "
-                                        "Actual data type: %s" % type(value_to_check))
-
-                if not isinstance(value2, Number) and not isinstance(value2[self._pos], Number):
-                    raise TypeError("The field to sum by must be of numeric type, actual type: %s"
-                                    % type(value2[self._pos]))
-
-                if not self._reduce_func:
-                    init_reduce_func(value2)
-                return self._reduce_func(value1, value2)
-
-        return self.reduce(SumReduceFunction(position_to_sum))
-
-    class MinMaxEnum(Enum):
-        MIN = 1
-        MAX = 2
-
-    def _basic_min_max(self, position: Union[int, str], agg_type: MinMaxEnum, is_by=False):
-        """
-        The basic method is used for operators such as min max min_by max_by
-        """
-        if not isinstance(position, int) and not isinstance(position, str):
-            raise TypeError("The field position must be of int or str type to locate the value to "
-                            "calculate by min max min_by max_by these operators."
-                            "You given type is: %s" % type(position))
-
-        if not isinstance(agg_type, KeyedStream.MinMaxEnum):
-            raise TypeError("Parameter agg_type must be of type KeyedStream.MinMaxEnum.")
-
-        class BasicMinMaxReduceFunction(ReduceFunction):
-
-            def __init__(self, position, agg_type, is_by):
-                self._pos = position
-                self._agg_type = agg_type
-                self._is_by = is_by
-                self._reduce_func = None
-
-            def reduce(self, value1, value2):
-
-                def init_reduce_func(value_to_check):
-                    if is_by and agg_type == KeyedStream.MinMaxEnum.MIN:
-                        # Logic for min_by operator.
-                        def reduce_func(v1, v2):
-                            if isinstance(value_to_check, (tuple, list, Row)):
-                                return v2 if v2[self._pos] < v1[self._pos] else v1
-                            else:
-                                return v2 if v2 < v1 else v1
-                        self._reduce_func = reduce_func
-
-                    elif is_by and agg_type == KeyedStream.MinMaxEnum.MAX:
-                        # Logic for max_by operator.
-                        def reduce_func(v1, v2):
-                            if isinstance(value_to_check, (tuple, list, Row)):
-                                return v2 if v2[self._pos] > v1[self._pos] else v1
-                            else:
-                                return v2 if v2 > v1 else v1
-                        self._reduce_func = reduce_func
-
-                    elif not is_by:
-                        if isinstance(value_to_check, tuple):
-                            def reduce_func(v1, v2):
-                                v1_list = list(v1)
-                                if agg_type == KeyedStream.MinMaxEnum.MIN:
-                                    # Logic for min operator with tuple type input.
-                                    v1_list[self._pos] = v2[self._pos] \
-                                        if v2[self._pos] < v1[self._pos] else v1[self._pos]
-                                else:
-                                    # Logic for max operator with tuple type input.
-                                    v1_list[self._pos] = v2[self._pos] \
-                                        if v2[self._pos] > v1[self._pos] else v1[self._pos]
-                                return tuple(v1_list)
-                            self._reduce_func = reduce_func
-
-                        elif isinstance(value_to_check, (list, Row)):
-                            def reduce_func(v1, v2):
-                                if agg_type == KeyedStream.MinMaxEnum.MIN:
-                                    # Logic for min operator with List and Row types input.
-                                    v1[self._pos] = v2[self._pos] \
-                                        if v2[self._pos] < v1[self._pos] else v1[self._pos]
-                                else:
-                                    # Logic for max operator with List and Row types input.
-                                    v1[self._pos] = v2[self._pos] \
-                                        if v2[self._pos] > v1[self._pos] else v1[self._pos]
-                                return v1
-                            self._reduce_func = reduce_func
-
-                        else:
-                            if self._pos != 0:
-                                raise TypeError(
-                                    "The %s field selected on a basic type. A field expression "
-                                    "on a basic type can only select the 0th field (which means "
-                                    "selecting the entire basic type)." % self._pos)
-
-                            def reduce_func(v1, v2):
-                                if agg_type == KeyedStream.MinMaxEnum.MIN:
-                                    # Logic for min operator with basic type input.
-                                    return v2 if v2 < v1 else v1
-                                else:
-                                    # Logic for max operator with basic type input.
-                                    return v2 if v2 > v1 else v1
-                            self._reduce_func = reduce_func
-
-                if isinstance(value2, (tuple, Row, list)):
-                    try:
-                        value2[self._pos] < value1[self._pos]
-                    except TypeError as err:
-                        raise TypeError("Use min max min_by max_by these operators, the given data "
-                                        "for operations must be comparable to each other. "
-                                        "\n%s" % err)
-                else:
-                    try:
-                        value2 < value1
-                    except TypeError as err:
-                        raise TypeError("Use min max min_by max_by these operators, the given data "
-                                        "for operations must be comparable to each other. "
-                                        "\n%s" % err)
-
-                if not self._reduce_func:
-                    init_reduce_func(value2)
-                return self._reduce_func(value1, value2)
-
-        return self.reduce(BasicMinMaxReduceFunction(position, agg_type, is_by))
+        return self._accumulate(position_to_sum, KeyedStream.AccumulateType.SUM)
 
     def min(self, position_to_min: Union[int, str] = 0) -> 'DataStream':
         """
-        Applies an aggregation that gives the current minimum of the data
-        stream at the given position by the given key. An independent aggregate
-        is kept per key.
+        Applies an aggregation that gives the current minimum of the data stream at the given
+        position by the given key. An independent aggregate is kept per key.
 
-        :param position_to_min:
-            The field position in the data points to minimize. The type can be int (field position)
-            or str (field name).
-            This is applicable to Tuple types, List types, Row types, and basic types (which is
-            considered as having one field).
+        Example(Tuple data):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('b', 1), ('b', 5)])
+            >>> ds.key_by(lambda x: x[0]).min(1)
+
+        Example(Row data):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...                          type_info=Types.ROW([Types.STRING(), Types.INT()]))
+            >>> ds.key_by(lambda x: x[0]).min(1)
+
+        Example(Row data with fields name):
+        ::
+
+            >>> ds = env.from_collection(
+            ...     [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...     type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
+            ... )
+            >>> ds.key_by(lambda x: x[0]).min("value")
+
+        :param position_to_min: The field position in the data points to minimize. The type can be
+                                int (field position) or str (field name). This is applicable to
+                                Tuple types, List types, Row types, and basic types (which is
+                                considered as having one field).
         :return: The transformed DataStream.
+
+        .. versionadded:: 1.16.0
         """
-        return self._basic_min_max(position_to_min, KeyedStream.MinMaxEnum.MIN, is_by=False)
+        return self._accumulate(position_to_min, KeyedStream.AccumulateType.MIN)
 
     def max(self, position_to_max: Union[int, str] = 0) -> 'DataStream':
         """
-        Applies an aggregation that gives the current maximize of the data
-        stream at the given position by the given key. An independent aggregate
-        is kept per key.
+        Applies an aggregation that gives the current maximize of the data stream at the given
+        position by the given key. An independent aggregate is kept per key.
 
-        :param position_to_max:
-            The field position in the data points to maximize. The type can be int (field position)
-            or str (field name).
-            This is applicable to Tuple types, List types, Row types, and basic types (which is
-            considered as having one field).
+        Example(Tuple data):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('b', 1), ('b', 5)])
+            >>> ds.key_by(lambda x: x[0]).max(1)
+
+        Example(Row data):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...                          type_info=Types.ROW([Types.STRING(), Types.INT()]))
+            >>> ds.key_by(lambda x: x[0]).max(1)
+
+        Example(Row data with fields name):
+        ::
+
+            >>> ds = env.from_collection(
+            ...     [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...     type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
+            ... )
+            >>> ds.key_by(lambda x: x[0]).max("value")
+
+        :param position_to_max: The field position in the data points to maximize. The type can be
+                                int (field position) or str (field name). This is applicable to
+                                Tuple types, List types, Row types, and basic types (which is
+                                considered as having one field).
         :return: The transformed DataStream.
+
+        .. versionadded:: 1.16.0
         """
-        return self._basic_min_max(position_to_max, KeyedStream.MinMaxEnum.MAX, is_by=False)
+        return self._accumulate(position_to_max, KeyedStream.AccumulateType.MAX)
 
     def min_by(self, position_to_min_by: Union[int, str] = 0) -> 'DataStream':
         """
@@ -1406,14 +1399,37 @@ class KeyedStream(DataStream):
         If more elements have the minimum value at the given position,
         the operator returns the first one by default.
 
-        :param position_to_min_by:
-            The field position in the data points to minimize. The type can be int (field position)
-            or str (field name).
-            This is applicable to Tuple types, List types, Row types, and basic types (which is
-            considered as having one field).
+        Example(Tuple data):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('b', 1), ('b', 5)])
+            >>> ds.key_by(lambda x: x[0]).min_by(1)
+
+        Example(Row data):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...                          type_info=Types.ROW([Types.STRING(), Types.INT()]))
+            >>> ds.key_by(lambda x: x[0]).min_by(1)
+
+        Example(Row data with fields name):
+        ::
+
+            >>> ds = env.from_collection(
+            ...     [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...     type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
+            ... )
+            >>> ds.key_by(lambda x: x[0]).min_by("value")
+
+        :param position_to_min_by: The field position in the data points to minimize. The type can
+                                   be int (field position) or str (field name). This is applicable
+                                   to Tuple types, List types, Row types, and basic types (which is
+                                   considered as having one field).
         :return: The transformed DataStream.
+
+        .. versionadded:: 1.16.0
         """
-        return self._basic_min_max(position_to_min_by, KeyedStream.MinMaxEnum.MIN, is_by=True)
+        return self._accumulate(position_to_min_by, KeyedStream.AccumulateType.MIN_BY)
 
     def max_by(self, position_to_max_by: Union[int, str] = 0) -> 'DataStream':
         """
@@ -1422,14 +1438,38 @@ class KeyedStream(DataStream):
         If more elements have the maximize value at the given position,
         the operator returns the first one by default.
 
-        :param position_to_max_by:
-            The field position in the data points to maximize. The type can be int (field position)
-            or str (field name).
-            This is applicable to Tuple types, List types, Row types, and basic types (which is
-            considered as having one field).
+
+        Example(Tuple data):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('b', 1), ('b', 5)])
+            >>> ds.key_by(lambda x: x[0]).max_by(1)
+
+        Example(Row data):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...                          type_info=Types.ROW([Types.STRING(), Types.INT()]))
+            >>> ds.key_by(lambda x: x[0]).max_by(1)
+
+        Example(Row data with fields name):
+        ::
+
+            >>> ds = env.from_collection(
+            ...     [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...     type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
+            ... )
+            >>> ds.key_by(lambda x: x[0]).max_by("value")
+
+        :param position_to_max_by: The field position in the data points to maximize. The type can
+                                   be int (field position) or str (field name). This is applicable
+                                   to Tuple types, List types, Row types, and basic types (which is
+                                   considered as having one field).
         :return: The transformed DataStream.
+
+        .. versionadded:: 1.16.0
         """
-        return self._basic_min_max(position_to_max_by, KeyedStream.MinMaxEnum.MAX, is_by=True)
+        return self._accumulate(position_to_max_by, KeyedStream.AccumulateType.MAX_BY)
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         return self._values().add_sink(sink_func)
