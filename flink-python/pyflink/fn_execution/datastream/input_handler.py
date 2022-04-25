@@ -17,7 +17,7 @@
 ################################################################################
 from abc import ABC
 from enum import Enum
-from typing import Any, cast, Iterable, Tuple, Union
+from typing import cast, Iterable
 
 from pyflink.common import Row
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
@@ -36,19 +36,24 @@ class RunnerInputHandler(ABC):
     """
 
     def __init__(
-        self, internal_timer_service: InternalTimerServiceImpl, process_element_func
+        self,
+        internal_timer_service: InternalTimerServiceImpl,
+        process_element_func,
+        has_side_output: bool
     ):
         self._internal_timer_service = internal_timer_service
         self._process_element_func = process_element_func
+        self._has_side_output = has_side_output
 
     def process_element(self, value) -> Iterable:
         timestamp = value[0]
         watermark = value[1]
         data = value[2]
         self._advance_watermark(watermark)
-        yield from ResultWrapper.wrap(
-            timestamp, watermark, self._process_element_func(data, timestamp)
-        )
+        yield from _emit_results(timestamp,
+                                 watermark,
+                                 self._process_element_func(data, timestamp),
+                                 self._has_side_output)
 
     def _advance_watermark(self, watermark: int) -> None:
         self._internal_timer_service.advance_watermark(watermark)
@@ -65,11 +70,13 @@ class TimerHandler(ABC):
         on_event_time_func,
         on_processing_time_func,
         namespace_coder,
+        has_side_output
     ):
         self._internal_timer_service = internal_timer_service
         self._on_event_time_func = on_event_time_func
         self._on_processing_time_func = on_processing_time_func
         self._namespace_coder = namespace_coder
+        self._has_side_output = has_side_output
 
     def process_timer(self, timer_data) -> Iterable:
         timer_type = timer_data[0]
@@ -84,14 +91,18 @@ class TimerHandler(ABC):
         else:
             namespace = None
         if timer_type == TimerType.EVENT_TIME.value:
-            yield from ResultWrapper.wrap(
-                timestamp, watermark, self._on_event_time(timestamp, key, namespace)
+            yield from _emit_results(
+                timestamp,
+                watermark,
+                self._on_event_time(timestamp, key, namespace),
+                self._has_side_output
             )
         elif timer_type == TimerType.PROCESSING_TIME.value:
-            yield from ResultWrapper.wrap(
+            yield from _emit_results(
                 timestamp,
                 watermark,
                 self._on_processing_time(timestamp, key, namespace),
+                self._has_side_output
             )
         else:
             raise Exception("Unsupported timer type: %d" % timer_type)
@@ -106,26 +117,16 @@ class TimerHandler(ABC):
         self._internal_timer_service.advance_watermark(watermark)
 
 
-class ResultWrapper(object):
-    side_output_enabled = False
-
-    @classmethod
-    def enable_side_output(cls):
-        cls.side_output_enabled = True
-
-    @classmethod
-    def wrap(
-        cls, timestamp: int, watermark: int, results: Iterable[Any]
-    ) -> Iterable[Union[Row, Tuple[str, Row]]]:
-        if results:
-            if cls.side_output_enabled:
-                for r in results:
-                    if isinstance(r, tuple) and isinstance(r[0], OutputTag):
-                        yield cast(OutputTag, r[0]).tag_id, Row(
-                            timestamp, watermark, r[1]
-                        )
-                    else:
-                        yield DEFAULT_OUTPUT_TAG, Row(timestamp, watermark, r)
-            else:
-                for r in results:
-                    yield Row(timestamp, watermark, r)
+def _emit_results(timestamp, watermark, results, has_side_output):
+    if results:
+        if has_side_output:
+            for result in results:
+                if isinstance(result, tuple) and isinstance(result[0], OutputTag):
+                    yield cast(OutputTag, result[0]).tag_id, Row(
+                        timestamp, watermark, result[1]
+                    )
+                else:
+                    yield DEFAULT_OUTPUT_TAG, Row(timestamp, watermark, result)
+        else:
+            for result in results:
+                yield Row(timestamp, watermark, result)

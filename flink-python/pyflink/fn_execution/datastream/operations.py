@@ -38,7 +38,7 @@ from pyflink.fn_execution.datastream.timerservice_impl import (
 from pyflink.fn_execution.datastream.input_handler import (
     RunnerInputHandler,
     TimerHandler,
-    ResultWrapper,
+    _emit_results,
 )
 from pyflink.metrics.metricbase import GenericMetricGroup
 
@@ -149,14 +149,10 @@ def extract_stateless_function(
     :param user_defined_function_proto: the proto representation of the Python :class:`Function`
     :param runtime_context: the streaming runtime context
     """
-    side_output_enabled = False
-    if runtime_context.get_job_parameter("SIDE_OUTPUT_ENABLED", None) is not None:
-        ResultWrapper.enable_side_output()
-        side_output_enabled = True
-
     from pyflink.fn_execution import flink_fn_execution_pb2
 
     func_type = user_defined_function_proto.function_type
+    has_side_output = user_defined_function_proto.has_side_output
     UserDefinedDataStreamFunction = flink_fn_execution_pb2.UserDefinedDataStreamFunction
 
     if func_type == UserDefinedDataStreamFunction.REVISE_OUTPUT:
@@ -171,10 +167,7 @@ def extract_stateless_function(
             # VALUE[CURRENT_TIMESTAMP, CURRENT_WATERMARK, NORMAL_DATA]
             timestamp = value[0]
             element = value[2]
-            if side_output_enabled:
-                yield DEFAULT_OUTPUT_TAG, Row(timestamp, element)
-            else:
-                yield Row(timestamp, element)
+            yield Row(timestamp, element)
 
         process_element_func = revise_output
 
@@ -200,7 +193,7 @@ def extract_stateless_function(
                 ctx.set_timestamp(timestamp)
                 ctx.timer_service().advance_watermark(watermark)
                 results = process_element(value[2], ctx)
-                yield from ResultWrapper.wrap(timestamp, watermark, results)
+                yield from _emit_results(timestamp, watermark, results, has_side_output)
 
             process_element_func = wrapped_func
 
@@ -222,7 +215,7 @@ def extract_stateless_function(
                 else:
                     results = process_element2(normal_data[2], ctx)
 
-                yield from ResultWrapper.wrap(timestamp, watermark, results)
+                yield from _emit_results(timestamp, watermark, results, has_side_output)
 
             process_element_func = wrapped_func
 
@@ -235,13 +228,11 @@ def extract_stateless_function(
 def extract_stateful_function(
     user_defined_function_proto, runtime_context: RuntimeContext, keyed_state_backend
 ):
-    if runtime_context.get_job_parameter("SIDE_OUTPUT_ENABLED", None) is not None:
-        ResultWrapper.enable_side_output()
-
     from pyflink.fn_execution import flink_fn_execution_pb2
 
     func_type = user_defined_function_proto.function_type
     user_defined_func = pickle.loads(user_defined_function_proto.payload)
+    has_side_output = user_defined_function_proto.has_side_output
     internal_timer_service = InternalTimerServiceImpl(keyed_state_backend)
 
     def state_key_selector(normal_data):
@@ -373,7 +364,7 @@ def extract_stateful_function(
     else:
         raise Exception("Unsupported function_type: " + str(func_type))
 
-    input_handler = RunnerInputHandler(internal_timer_service, process_element)
+    input_handler = RunnerInputHandler(internal_timer_service, process_element, has_side_output)
     process_element_func = input_handler.process_element
 
     timer_handler = TimerHandler(
@@ -381,6 +372,7 @@ def extract_stateful_function(
         on_event_time,
         on_processing_time,
         keyed_state_backend._namespace_coder_impl,
+        has_side_output
     )
     process_timer_func = timer_handler.process_timer
 

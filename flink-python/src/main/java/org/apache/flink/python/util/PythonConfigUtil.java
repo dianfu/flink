@@ -101,6 +101,8 @@ public class PythonConfigUtil {
                 }
             }
         }
+
+        processSideOutput(env.getTransformations());
     }
 
     /** Extract the configurations which is used in the Python operators. */
@@ -114,13 +116,12 @@ public class PythonConfigUtil {
     }
 
     /**
-     * Preprocess {@link SideOutputTransformation}s, if the branching operator is a python operator,
-     * {@link OutputTag}s related to {@link SideOutputTransformation}s will be added to the python
-     * operator.
+     * Process {@link SideOutputTransformation}s, set the {@link OutputTag}s into the Python
+     * corresponding operator to make it aware of the {@link OutputTag}s.
      */
-    public static void preprocessSideOutput(StreamExecutionEnvironment env) {
+    private static void processSideOutput(List<Transformation<?>> transformations) {
         final Set<Transformation<?>> visitedTransforms = Sets.newIdentityHashSet();
-        final Queue<Transformation<?>> queue = Queues.newArrayDeque(env.getTransformations());
+        final Queue<Transformation<?>> queue = Queues.newArrayDeque(transformations);
 
         while (!queue.isEmpty()) {
             Transformation<?> transform = queue.poll();

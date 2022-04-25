@@ -81,7 +81,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -195,7 +194,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             double managedMemoryFraction,
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
             FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor,
-            @Nullable Map<String, FlinkFnApi.CoderInfoDescriptor> sideOutputCoderDescriptors) {
+            Map<String, FlinkFnApi.CoderInfoDescriptor> sideOutputCoderDescriptors) {
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
         this.flinkMetricContainer = flinkMetricContainer;
@@ -207,8 +206,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         this.managedMemoryFraction = managedMemoryFraction;
         this.inputCoderDescriptor = Preconditions.checkNotNull(inputCoderDescriptor);
         this.outputCoderDescriptor = Preconditions.checkNotNull(outputCoderDescriptor);
-        this.sideOutputCoderDescriptors =
-                sideOutputCoderDescriptors == null ? new HashMap<>() : sideOutputCoderDescriptors;
+        this.sideOutputCoderDescriptors = Preconditions.checkNotNull(sideOutputCoderDescriptors);
     }
 
     // ------------------------------------------------------------------------

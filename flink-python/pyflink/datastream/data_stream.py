@@ -45,7 +45,6 @@ from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSliding
                                        CountWindowSerializer, TimeWindowSerializer, Trigger,
                                        WindowAssigner, WindowOperationDescriptor)
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import is_instance_of
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
            'DataStreamSink', 'CloseableIterator']
@@ -760,7 +759,6 @@ class DataStream(object):
         :param limit: The limit for the collected elements.
         """
         JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
-        JPythonConfigUtil.preprocessSideOutput(self._j_data_stream.getExecutionEnvironment())
         JPythonConfigUtil.configPythonOperator(self._j_data_stream.getExecutionEnvironment())
         self._apply_chaining_optimization()
         if job_execution_name is None and limit is None:
@@ -802,12 +800,6 @@ class DataStream(object):
 
         .. versionadded:: 1.16.0
         """
-        gateway = get_gateway()
-        if not is_instance_of(
-            self._j_data_stream,
-            gateway.jvm.org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
-        ):
-            raise TypeError("get_side_output() should be applied on SingleOutputStreamOperator")
         return DataStream(self._j_data_stream.getSideOutput(output_tag.get_java_output_tag()))
 
     def _apply_chaining_optimization(self):

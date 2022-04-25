@@ -47,8 +47,8 @@ cdef class IntermediateOutputProcessor(OutputProcessor):
 
 cdef class FunctionOperation(Operation):
     cdef dict _output_processors
-    cdef OutputProcessor _only_processor
-    cdef bint _side_output_enabled
+    cdef OutputProcessor _main_output_processor
+    cdef bint _has_side_output
     cdef bint _is_python_coder
     cdef object process_element
     cdef object operation

@@ -76,7 +76,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
                 managedMemoryFraction,
                 inputCoderDescriptor,
                 outputCoderDescriptor,
-                null);
+                Collections.emptyMap());
         this.functionUrn = Preconditions.checkNotNull(functionUrn);
         this.userDefinedFunctionProto = Preconditions.checkNotNull(userDefinedFunctionProto);
     }

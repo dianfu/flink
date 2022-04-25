@@ -107,7 +107,6 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
     @Override
     protected void buildTransforms(RunnerApi.Components.Builder componentsBuilder) {
         for (int i = 0; i < userDefinedDataStreamFunctions.size(); i++) {
-
             final Map<String, String> outputCollectionMap = new HashMap<>();
 
             // Prepare side outputs
@@ -121,6 +120,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                     addCollectionToComponents(componentsBuilder, reviseCollectionId, reviseCoderId);
                 }
             }
+
             // Prepare main outputs
             final String outputCollectionId = COLLECTION_PREFIX + i;
             final String outputCoderId = CODER_PREFIX + i;

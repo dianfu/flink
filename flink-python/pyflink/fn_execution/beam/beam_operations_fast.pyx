@@ -57,10 +57,7 @@ cdef class NetworkInputProcessor(InputProcessor):
 cdef class IntermediateInputProcessor(InputProcessor):
 
     def __init__(self, input_values):
-        if isinstance(input_values, list):
-            self._input_values = iter(input_values)
-        else:
-            self._input_values = input_values
+        self._input_values = iter(input_values)
         self._next_value = None
 
     cpdef has_next(self):
@@ -115,6 +112,16 @@ cdef class FunctionOperation(Operation):
 
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
+        consumer = consumers[DEFAULT_OUTPUT_TAG][0]
+        if isinstance(consumer, DataOutputOperation):
+            _value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
+            if isinstance(_value_coder_impl, FlinkLengthPrefixCoderBeamWrapper):
+                self._is_python_coder = False
+            else:
+                self._is_python_coder = True
+        else:
+            self._is_python_coder = False
+
         self._output_processors = FunctionOperation._create_output_processors(consumers)  \
             # type: Dict[str, List[OutputProcessor]]
         self.operation_cls = operation_cls
@@ -125,17 +132,14 @@ cdef class FunctionOperation(Operation):
             self._profiler = Profiler()
         else:
             self._profiler = None
+
         if isinstance(spec.serialized_fn, UserDefinedDataStreamFunction):
-            job_parameters = {
-                p.key: p.value for p in spec.serialized_fn.runtime_context.job_parameters
-            }
+            self._has_side_output = spec.serialized_fn.has_side_output
         else:
-            job_parameters = {}
-        if job_parameters.get("SIDE_OUTPUT_ENABLED") is not None:
-            self._side_output_enabled = True
-        else:
-            self._side_output_enabled = False
-            self._only_processor = self._output_processors[DEFAULT_OUTPUT_TAG][0]
+            # it doesn't support side output in Table API & SQL
+            self._has_side_output = False
+        if not self._has_side_output:
+            self._main_output_processor = self._output_processors[DEFAULT_OUTPUT_TAG][0]
 
     cpdef start(self):
         with self.scoped_start_state:
@@ -161,22 +165,16 @@ cdef class FunctionOperation(Operation):
         cdef InputStreamWrapper input_stream_wrapper
         cdef InputProcessor input_processor
         with self.scoped_process_state:
-            if isinstance(o.value, InputStreamWrapper):
-                input_processor = NetworkInputProcessor(o.value)
+            if self._is_python_coder:
+                for value in o.value:
+                    self._main_output_processor.process_outputs(o, self.process_element(value))
             else:
-                input_processor = IntermediateInputProcessor(o.value)
-            if isinstance(self.operation, BundleOperation):
-                while input_processor.has_next():
-                    self.process_element(input_processor.next())
-                self._only_processor.process_outputs(o, self.operation.finish_bundle())
-            elif isinstance(self.operation, TableOperation):
-                while input_processor.has_next():
-                    self._only_processor.process_outputs(
-                        o,
-                        self.process_element(input_processor.next())
-                    )
-            else:
-                if self._side_output_enabled:
+                if isinstance(o.value, InputStreamWrapper):
+                    input_processor = NetworkInputProcessor(o.value)
+                else:
+                    input_processor = IntermediateInputProcessor(o.value)
+
+                if self._has_side_output:
                     while input_processor.has_next():
                         result = self.process_element(input_processor.next())
                         for tag, row in result:
@@ -185,11 +183,16 @@ cdef class FunctionOperation(Operation):
                                 for p in ps:
                                     (<OutputProcessor> p).process_outputs(o, [row])
                 else:
-                    while input_processor.has_next():
-                        self._only_processor.process_outputs(
-                            o,
+                    if isinstance(self.operation, BundleOperation):
+                        while input_processor.has_next():
                             self.process_element(input_processor.next())
-                        )
+                        self._main_output_processor.process_outputs(o, self.operation.finish_bundle())
+                    else:
+                        while input_processor.has_next():
+                            self._main_output_processor.process_outputs(
+                                o,
+                                self.process_element(input_processor.next())
+                            )
 
     def progress_metrics(self):
         metrics = super(FunctionOperation, self).progress_metrics()
@@ -249,12 +252,12 @@ cdef class StatefulFunctionOperation(FunctionOperation):
 
     cpdef process_timer(self, tag, timer_data):
         cdef BOutputStream output_stream
-        if self._side_output_enabled:
+        if self._has_side_output:
             for tag, row in self.operation.process_timer(timer_data.user_key):
                 ps = self._output_processors.get(tag)
                 if ps is not None:
                     for p in ps:
                         (<OutputProcessor> p).process_outputs(self._reusable_windowed_value, [row])
         else:
-            self._only_processor.process_outputs(self._reusable_windowed_value,
-                                                 self.operation.process_timer(timer_data.user_key))
+            self._main_output_processor.process_outputs(
+                self._reusable_windowed_value, self.operation.process_timer(timer_data.user_key))

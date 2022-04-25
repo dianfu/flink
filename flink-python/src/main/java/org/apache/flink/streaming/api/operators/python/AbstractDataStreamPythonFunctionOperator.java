@@ -49,8 +49,6 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
 
     private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
 
-    private static final String SIDE_OUTPUT_ENABLED = "SIDE_OUTPUT_ENABLED";
-
     /** The number of partitions for the partition custom function. */
     @Nullable private Integer numPartitions = null;
 
@@ -110,9 +108,6 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
         if (numPartitions != null) {
             internalParameters.put(NUM_PARTITIONS, String.valueOf(numPartitions));
         }
-        if (sideOutputTags.size() > 0) {
-            internalParameters.put(SIDE_OUTPUT_ENABLED, "");
-        }
         return internalParameters;
     }
 
@@ -128,8 +123,17 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
         return this.containsPartitionCustom;
     }
 
+    // ----------------------------------------------------------------------
+    // Side outputs
+    // ----------------------------------------------------------------------
+
     public void addSideOutputTag(OutputTag<?> outputTag) {
         sideOutputTags.put(outputTag.getId(), outputTag);
+    }
+
+    protected OutputTag<?> getOutputTagById(String id) {
+        Preconditions.checkArgument(sideOutputTags.containsKey(id));
+        return sideOutputTags.get(id);
     }
 
     public void addSideOutputTags(Collection<OutputTag<?>> outputTags) {
@@ -153,17 +157,12 @@ public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
         return descriptorMap;
     }
 
-    protected OutputTag<?> getOutputTagById(String id) {
-        Preconditions.checkArgument(sideOutputTags.containsKey(id));
-        return sideOutputTags.get(id);
-    }
-
     protected TypeSerializer<Row> getSideOutputTypeSerializerById(String id) {
         Preconditions.checkArgument(sideOutputSerializers.containsKey(id));
         return sideOutputSerializers.get(id);
     }
 
-    private TypeInformation<Row> getSideOutputTypeInfo(OutputTag<?> outputTag) {
+    private static TypeInformation<Row> getSideOutputTypeInfo(OutputTag<?> outputTag) {
         return Types.ROW(Types.LONG, outputTag.getTypeInfo());
     }
 

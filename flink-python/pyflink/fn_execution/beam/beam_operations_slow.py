@@ -34,6 +34,7 @@ from pyflink.fn_execution.profiler import Profiler
 
 
 class OutputProcessor(abc.ABC):
+
     @abstractmethod
     def process_outputs(self, windowed_value: WindowedValue, results: Iterable[Any]):
         pass
@@ -43,12 +44,11 @@ class OutputProcessor(abc.ABC):
 
 
 class NetworkOutputProcessor(OutputProcessor):
+
     def __init__(self, consumer):
         assert isinstance(consumer, DataOutputOperation)
         self._consumer = consumer
-        self._value_coder_impl = (
-            consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
-        )
+        self._value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
 
     def process_outputs(self, windowed_value: WindowedValue, results: Iterable[Any]):
         output_stream = self._consumer.output_stream
@@ -60,6 +60,7 @@ class NetworkOutputProcessor(OutputProcessor):
 
 
 class IntermediateOutputProcessor(OutputProcessor):
+
     def __init__(self, consumer):
         self._consumer = consumer
 
@@ -86,17 +87,14 @@ class FunctionOperation(Operation):
             self._profiler = Profiler()
         else:
             self._profiler = None
+
         if isinstance(spec.serialized_fn, UserDefinedDataStreamFunction):
-            job_parameters = {
-                p.key: p.value for p in spec.serialized_fn.runtime_context.job_parameters
-            }
+            self._has_side_output = spec.serialized_fn.has_side_output
         else:
-            job_parameters = {}
-        if job_parameters.get("SIDE_OUTPUT_ENABLED") is not None:
-            self._side_output_enabled = True
-        else:
-            self._side_output_enabled = False
-            self._only_processor = self._output_processors[DEFAULT_OUTPUT_TAG][0]
+            # it doesn't support side output in Table API & SQL
+            self._has_side_output = False
+        if not self._has_side_output:
+            self._main_output_processor = self._output_processors[DEFAULT_OUTPUT_TAG][0]
 
     def setup(self):
         super(FunctionOperation, self).setup()
@@ -139,24 +137,19 @@ class FunctionOperation(Operation):
 
     def process(self, o: WindowedValue):
         with self.scoped_process_state:
-            if isinstance(self.operation, BundleOperation):
+            if self._has_side_output:
                 for value in o.value:
-                    self.process_element(value)
-                self._only_processor.process_outputs(o, self.operation.finish_bundle())
-            elif isinstance(self.operation, TableOperation):
-                for value in o.value:
-                    self._only_processor.process_outputs(
-                        o, self.operation.process_element(value)
-                    )
+                    for tag, row in self.process_element(value):
+                        for p in self._output_processors.get(tag, []):
+                            p.process_outputs(o, [row])
             else:
-                if self._side_output_enabled:
+                if isinstance(self.operation, BundleOperation):
                     for value in o.value:
-                        for tag, row in self.process_element(value):
-                            for p in self._output_processors.get(tag, []):
-                                p.process_outputs(o, [row])
+                        self.process_element(value)
+                    self._main_output_processor.process_outputs(o, self.operation.finish_bundle())
                 else:
                     for value in o.value:
-                        self._only_processor.process_outputs(
+                        self._main_output_processor.process_outputs(
                             o, self.operation.process_element(value)
                         )
 
@@ -220,12 +213,14 @@ class StatefulFunctionOperation(FunctionOperation):
         self.operation.add_timer_info(timer_info)
 
     def process_timer(self, tag, timer_data):
-        if self._side_output_enabled:
+        if self._has_side_output:
+            # the field user_key holds the timer data
             for tag, row in self.operation.process_timer(timer_data.user_key):
                 for p in self._output_processors.get(tag, []):
                     p.process_outputs(self._reusable_windowed_value, [row])
         else:
-            self._only_processor.process_outputs(
+            self._main_output_processor.process_outputs(
                 self._reusable_windowed_value,
+                # the field user_key holds the timer data
                 self.operation.process_timer(timer_data.user_key),
             )
