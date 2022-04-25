@@ -18,7 +18,6 @@
 import abc
 
 from pyflink.common import Row
-from pyflink.common.constants import DEFAULT_OUTPUT_TAG
 from pyflink.common.serializer import VoidNamespaceSerializer
 from pyflink.datastream import TimeDomain, RuntimeContext
 from pyflink.datastream.window import WindowOperationDescriptor

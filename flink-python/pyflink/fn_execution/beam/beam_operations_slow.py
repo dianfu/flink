@@ -26,10 +26,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
 from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
-from pyflink.fn_execution.table.operations import (
-    BundleOperation,
-    BaseOperation as TableOperation,
-)
+from pyflink.fn_execution.table.operations import BundleOperation
 from pyflink.fn_execution.profiler import Profiler
 
 
