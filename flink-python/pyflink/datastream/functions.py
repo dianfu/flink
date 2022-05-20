@@ -1031,7 +1031,7 @@ class ProcessAllWindowFunction(Function, Generic[IN, OUT, W]):
 
             .. note::
                 If you use per-window state you have to ensure that you clean it up by implementing
-                :func:`~ProcessWindowFunction.clear`.
+                :func:`~ProcessAllWindowFunction.clear`.
 
             :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
             """

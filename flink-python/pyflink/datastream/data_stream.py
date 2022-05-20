@@ -457,6 +457,8 @@ class DataStream(object):
 
         :param window_assigner: The WindowAssigner that assigns elements to windows.
         :return: The trigger windows data stream.
+
+        .. versionadded:: 1.16.0
         """
         return AllWindowedStream(self, window_assigner)
 
@@ -1665,14 +1667,14 @@ class WindowedStream(object):
     def get_input_type(self):
         return _from_java_type(self._keyed_stream._original_data_type_info.get_java_type_info())
 
-    def trigger(self, trigger: Trigger):
+    def trigger(self, trigger: Trigger) -> 'WindowedStream':
         """
         Sets the Trigger that should be used to trigger window emission.
         """
         self._window_trigger = trigger
         return self
 
-    def allowed_lateness(self, time_ms: int):
+    def allowed_lateness(self, time_ms: int) -> 'WindowedStream':
         """
         Sets the time by which elements are allowed to be late. Elements that arrive behind the
         watermark by more than the specified time will be dropped. By default, the allowed lateness
@@ -1683,7 +1685,7 @@ class WindowedStream(object):
         self._allowed_lateness = time_ms
         return self
 
-    def side_output_late_data(self, output_tag: OutputTag):
+    def side_output_late_data(self, output_tag: OutputTag) -> 'WindowedStream':
         """
         Send late arriving data to the side output identified by the given :class:`OutputTag`. Data
         is considered late after the watermark has passed the end of the window plus the allowed
@@ -1914,15 +1916,17 @@ class AllWindowedStream(object):
     """
 
     def __init__(self, data_stream: DataStream, window_assigner: WindowAssigner):
-        self._input_stream = data_stream.key_by(NullByteKeySelector())
+        self._keyed_stream = data_stream.key_by(NullByteKeySelector())
         self._window_assigner = window_assigner
         self._allowed_lateness = 0
         self._late_data_output_tag = None  # type: Optional[OutputTag]
-        self._window_trigger = window_assigner.get_default_trigger(
-            self._input_stream.get_execution_environment())  # type: Trigger
+        self._window_trigger = None  # type: Trigger
+
+    def get_execution_environment(self):
+        return self._keyed_stream.get_execution_environment()
 
     def get_input_type(self):
-        return _from_java_type(self._input_stream._original_data_type_info.get_java_type_info())
+        return _from_java_type(self._keyed_stream._original_data_type_info.get_java_type_info())
 
     def trigger(self, trigger: Trigger) -> 'AllWindowedStream':
         """
@@ -1936,7 +1940,7 @@ class AllWindowedStream(object):
         self._window_trigger = trigger
         return self
 
-    def allowed_lateness(self, time_ms: int):
+    def allowed_lateness(self, time_ms: int) -> 'AllWindowedStream':
         """
         Sets the time by which elements are allowed to be late. Elements that arrive behind the
         watermark by more than the specified time will be dropped. By default, the allowed lateness
@@ -1947,7 +1951,7 @@ class AllWindowedStream(object):
         self._allowed_lateness = time_ms
         return self
 
-    def side_output_late_data(self, output_tag: OutputTag):
+    def side_output_late_data(self, output_tag: OutputTag) -> 'AllWindowedStream':
         """
         Send late arriving data to the side output identified by the given :class:`OutputTag`. Data
         is considered late after the watermark has passed the end of the window plus the allowed
@@ -1960,14 +1964,11 @@ class AllWindowedStream(object):
         ::
 
             >>> tag = OutputTag("late-data", Types.TUPLE([Types.INT(), Types.STRING()]))
-            >>> main_stream = ds.key_by(lambda x: x[1]) \\
-            ...                 .window_all(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            >>> main_stream = ds.window_all(TumblingEventTimeWindows.of(Time.seconds(5))) \\
             ...                 .side_output_late_data(tag) \\
-            ...                 .process(ProcessAllWindowFunction[tuple, tuple, TimeWindow](),
-            ...                      Types.TUPLE([Types.LONG(), Types.LONG(), Types.INT()]))
+            ...                 .process(MyProcessAllWindowFunction(),
+            ...                          Types.TUPLE([Types.LONG(), Types.LONG(), Types.INT()]))
             >>> late_stream = main_stream.get_side_output(tag)
-
-        .. versionadded:: 1.16.0
         """
         self._late_data_output_tag = output_tag
         return self
@@ -2022,7 +2023,7 @@ class AllWindowedStream(object):
                                 output_type: TypeInformation):
         if self._window_trigger is None:
             self._window_trigger = self._window_assigner.get_default_trigger(
-                self._input_stream.get_execution_environment())
+                self.get_execution_environment())
         window_serializer = self._window_assigner.get_window_serializer()
         window_operation_descriptor = WindowOperationDescriptor(
             self._window_assigner,
@@ -2036,7 +2037,7 @@ class AllWindowedStream(object):
         from pyflink.fn_execution import flink_fn_execution_pb2
         j_python_data_stream_function_operator, j_output_type_info = \
             _get_one_input_stream_operator(
-                self._input_stream,
+                self._keyed_stream,
                 window_operation_descriptor,
                 flink_fn_execution_pb2.UserDefinedDataStreamFunction.WINDOW,  # type: ignore
                 output_type)
@@ -2044,7 +2045,7 @@ class AllWindowedStream(object):
         op_name = "TriggerWindow({}, {}, {}, AllWindowedStream)" \
             .format(self._window_assigner, window_state_descriptor, self._window_trigger)
 
-        return DataStream(self._input_stream._j_data_stream.transform(
+        return DataStream(self._keyed_stream._j_data_stream.transform(
             op_name,
             j_output_type_info,
             j_python_data_stream_function_operator))
