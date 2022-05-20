@@ -1754,9 +1754,13 @@ class WindowedStream(object):
         reducing_state_descriptor = ReducingStateDescriptor(WINDOW_STATE_NAME,
                                                             reduce_function,
                                                             self.get_input_type())
+        func_desc = type(reduce_function).__name__
+        if window_function is not None:
+            func_desc = "%s, %s" % (func_desc, type(window_function).__name__)
 
         return self._get_result_data_stream(internal_window_function,
                                             reducing_state_descriptor,
+                                            func_desc,
                                             output_type)
 
     def aggregate(self,
@@ -1822,9 +1826,12 @@ class WindowedStream(object):
         aggregating_state_descriptor = AggregatingStateDescriptor(WINDOW_STATE_NAME,
                                                                   aggregate_function,
                                                                   accumulator_type)
-
+        func_desc = type(aggregate_function).__name__
+        if window_function is not None:
+            func_desc = "%s, %s" % (func_desc, type(window_function).__name__)
         return self._get_result_data_stream(internal_window_function,
                                             aggregating_state_descriptor,
+                                            func_desc,
                                             output_type)
 
     def apply(self,
@@ -1844,8 +1851,10 @@ class WindowedStream(object):
         internal_window_function = InternalIterableWindowFunction(
             window_function)  # type: InternalWindowFunction
         list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
+        func_desc = type(window_function).__name__
         return self._get_result_data_stream(internal_window_function,
                                             list_state_descriptor,
+                                            func_desc,
                                             output_type)
 
     def process(self,
@@ -1866,13 +1875,16 @@ class WindowedStream(object):
         internal_window_function = InternalIterableProcessWindowFunction(
             process_window_function)  # type: InternalWindowFunction
         list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
+        func_desc = type(process_window_function).__name__
         return self._get_result_data_stream(internal_window_function,
                                             list_state_descriptor,
+                                            func_desc,
                                             output_type)
 
     def _get_result_data_stream(self,
                                 internal_window_function: InternalWindowFunction,
                                 window_state_descriptor: StateDescriptor,
+                                func_desc: str,
                                 output_type: TypeInformation):
         if self._window_trigger is None:
             self._window_trigger = self._window_assigner.get_default_trigger(
@@ -1895,10 +1907,12 @@ class WindowedStream(object):
                 flink_fn_execution_pb2.UserDefinedDataStreamFunction.WINDOW,  # type: ignore
                 output_type)
 
+        op_name = window_operation_descriptor.generate_op_name()
+        op_desc = window_operation_descriptor.generate_op_desc("Window", func_desc)
         return DataStream(self._keyed_stream._j_data_stream.transform(
-            "WINDOW",
+            op_name,
             j_output_type_info,
-            j_python_data_stream_function_operator))
+            j_python_data_stream_function_operator)).set_description(op_desc)
 
 
 class AllWindowedStream(object):
@@ -1991,8 +2005,10 @@ class AllWindowedStream(object):
         internal_window_function = InternalIterableAllWindowFunction(
             window_function)  # type: InternalWindowFunction
         list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
+        func_desc = type(window_function).__name__
         return self._get_result_data_stream(internal_window_function,
                                             list_state_descriptor,
+                                            func_desc,
                                             output_type)
 
     def process(self,
@@ -2013,13 +2029,16 @@ class AllWindowedStream(object):
         internal_window_function = InternalIterableProcessAllWindowFunction(
             process_window_function)  # type: InternalWindowFunction
         list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
+        func_desc = type(process_window_function).__name__
         return self._get_result_data_stream(internal_window_function,
                                             list_state_descriptor,
+                                            func_desc,
                                             output_type)
 
     def _get_result_data_stream(self,
                                 internal_window_function: InternalWindowFunction,
                                 window_state_descriptor: StateDescriptor,
+                                func_desc: str,
                                 output_type: TypeInformation):
         if self._window_trigger is None:
             self._window_trigger = self._window_assigner.get_default_trigger(
@@ -2042,13 +2061,12 @@ class AllWindowedStream(object):
                 flink_fn_execution_pb2.UserDefinedDataStreamFunction.WINDOW,  # type: ignore
                 output_type)
 
-        op_name = "TriggerWindow({}, {}, {}, AllWindowedStream)" \
-            .format(self._window_assigner, window_state_descriptor, self._window_trigger)
-
+        op_name = window_operation_descriptor.generate_op_name()
+        op_desc = window_operation_descriptor.generate_op_desc("AllWindow", func_desc)
         return DataStream(self._keyed_stream._j_data_stream.transform(
             op_name,
             j_output_type_info,
-            j_python_data_stream_function_operator))
+            j_python_data_stream_function_operator)).set_description(op_desc)
 
 
 class ConnectedStreams(object):
