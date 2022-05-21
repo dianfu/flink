@@ -1501,7 +1501,7 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         return False
 
     def __repr__(self):
-        return "ProcessingTimeSessionWindows(%s, %s)" % self._session_gap
+        return "ProcessingTimeSessionWindows(%s)" % self._session_gap
 
 
 class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
