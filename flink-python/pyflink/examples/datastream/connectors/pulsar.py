@@ -25,8 +25,9 @@ from pyflink.datastream.connectors import PulsarSource, PulsarSink, PulsarSerial
     StartCursor, StopCursor, SubscriptionType, PulsarDeserializationSchema, DeliveryGuarantee, \
     TopicRoutingMode
 
+if __name__ == '__main__':
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
-def pulsar_demo():
     PULSAR_SQL_CONNECTOR_PATH = 'file:///path/to/flink-sql-connector-pulsar-1.16.0.jar'
     SERVICE_URL = 'pulsar://localhost:6650'
     ADMIN_URL = 'http://localhost:8080'
@@ -69,9 +70,3 @@ def pulsar_demo():
     ds.sink_to(pulsar_sink).name('pulsar sink')
 
     env.execute()
-
-
-if __name__ == '__main__':
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
-
-    pulsar_demo()
