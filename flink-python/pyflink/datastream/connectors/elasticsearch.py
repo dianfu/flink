@@ -24,6 +24,13 @@ from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray
 
 
+__all__ = ['FlushBackoffType',
+           'ElasticsearchEmitter',
+           'Elasticsearch6SinkBuilder',
+           'Elasticsearch7SinkBuilder',
+           'ElasticsearchSink']
+
+
 class FlushBackoffType(Enum):
     """
     Used to control whether the sink should retry failed requests at all or with which kind back off
@@ -53,6 +60,39 @@ class FlushBackoffType(Enum):
         return getattr(JFlushBackoffType, self.name)
 
 
+class ElasticsearchEmitter(object):
+    """
+    Emitter which is used by sinks to prepare elements for sending them to Elasticsearch.
+    """
+
+    def __init__(self, j_emitter):
+        self._j_emitter = j_emitter
+
+    @staticmethod
+    def static_index(index: str, key_field: str = None, doc_type: str = None) \
+            -> 'ElasticsearchEmitter':
+        """
+        Creates an emitter with static index which is invoked on every record to convert it to
+        Elasticsearch actions.
+        """
+        JSimpleElasticsearchEmitter = get_gateway().jvm \
+            .org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter
+        j_emitter = JSimpleElasticsearchEmitter(index, doc_type, key_field, False)
+        return ElasticsearchEmitter(j_emitter)
+
+    @staticmethod
+    def dynamic_index(index_field: str, key_field: str = None, doc_type: str = None) \
+            -> 'ElasticsearchEmitter':
+        """
+        Creates an emitter with dynamic index which is invoked on every record to convert it to
+        Elasticsearch actions.
+        """
+        JSimpleElasticsearchEmitter = get_gateway().jvm \
+            .org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter
+        j_emitter = JSimpleElasticsearchEmitter(index_field, doc_type, key_field, True)
+        return ElasticsearchEmitter(j_emitter)
+
+
 class ElasticsearchSinkBuilderBase(abc.ABC):
     """
     Base builder to construct a ElasticsearchSink.
@@ -62,30 +102,6 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
     def __init__(self):
         self._j_elasticsearch_sink_builder = None
 
-    def set_static_index(self, index: str, key_field: str = None, doc_type: str = None) \
-            -> 'ElasticsearchSinkBuilderBase':
-        """
-        Sets the emitter with static index which is invoked on every record to convert it to
-        Elasticsearch actions.
-        """
-        JSimpleElasticsearchEmitter = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter
-        j_emitter = JSimpleElasticsearchEmitter(index, doc_type, key_field, False)
-        self._j_elasticsearch_sink_builder.setEmitter(j_emitter)
-        return self
-
-    def set_dynamic_index(self, index_field: str, key_field: str = None, doc_type: str = None) \
-            -> 'ElasticsearchSinkBuilderBase':
-        """
-        Sets the emitter with dynamic index which is invoked on every record to convert it to
-        Elasticsearch actions.
-        """
-        JSimpleElasticsearchEmitter = get_gateway().jvm \
-            .org.apache.flink.connector.elasticsearch.sink.SimpleElasticsearchEmitter
-        j_emitter = JSimpleElasticsearchEmitter(index_field, doc_type, key_field, True)
-        self._j_elasticsearch_sink_builder.setEmitter(j_emitter)
-        return self
-
     @abc.abstractmethod
     def get_http_host_class(self):
         """
@@ -93,6 +109,15 @@ class ElasticsearchSinkBuilderBase(abc.ABC):
         version.
         """
         pass
+
+    def set_emitter(self, emitter: ElasticsearchEmitter) -> 'ElasticsearchSinkBuilderBase':
+        """
+        Sets the emitter which is invoked on every record to convert it to Elasticsearch actions.
+
+        :param emitter: The emitter to process records into Elasticsearch actions.
+        """
+        self._j_elasticsearch_sink_builder.setEmitter(emitter._j_emitter)
+        return self
 
     def set_hosts(self, hosts: Union[str, List[str]]) -> 'ElasticsearchSinkBuilderBase':
         """
@@ -217,8 +242,8 @@ class Elasticsearch6SinkBuilder(ElasticsearchSinkBuilderBase):
     ::
 
         >>> sink = Elasticsearch6SinkBuilder() \\
-        ...     .set_hosts(['localhost:9200']) \\
-        ...     .set_emitter('org.foo.bar.PyTestElasticsearchEmitter') \\
+        ...     .set_hosts('localhost:9200') \\
+        ...     .set_emitter(ElasticsearchEmitter.static_index("user", "key_col")) \\
         ...     .build()
     """
 
@@ -241,8 +266,8 @@ class Elasticsearch7SinkBuilder(ElasticsearchSinkBuilderBase):
     ::
 
         >>> sink = Elasticsearch7SinkBuilder() \\
-        ...     .set_hosts(['localhost:9200']) \\
-        ...     .set_emitter('org.foo.bar.PyTestElasticsearchEmitter') \\
+        ...     .set_hosts('localhost:9200') \\
+        ...     .set_emitter(ElasticsearchEmitter.dynamic_index("index_col", "key_col")) \\
         ...     .build()
     """
 

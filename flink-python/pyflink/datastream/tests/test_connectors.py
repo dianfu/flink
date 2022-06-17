@@ -17,7 +17,8 @@
 ################################################################################
 from abc import ABC, abstractmethod
 
-from pyflink.datastream.connectors.elasticsearch import Elasticsearch7SinkBuilder, FlushBackoffType
+from pyflink.datastream.connectors.elasticsearch import Elasticsearch7SinkBuilder, \
+    FlushBackoffType, ElasticsearchEmitter
 
 from pyflink.common import typeinfo, Duration, WatermarkStrategy, ConfigOptions
 from pyflink.common.serialization import JsonRowDeserializationSchema, \
@@ -76,7 +77,7 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
             type_info=Types.MAP(Types.STRING(), Types.STRING()))
 
         es_sink = Elasticsearch7SinkBuilder() \
-            .set_static_index('foo', 'id') \
+            .set_emitter(ElasticsearchEmitter.static_index('foo', 'id')) \
             .set_hosts(['localhost:9200']) \
             .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
             .set_bulk_flush_max_actions(1) \
@@ -129,7 +130,7 @@ class FlinkElasticsearch7Test(ConnectorTestBase):
             type_info=Types.MAP(Types.STRING(), Types.STRING()))
 
         es_dynamic_index_sink = Elasticsearch7SinkBuilder() \
-            .set_dynamic_index('name', 'id') \
+            .set_emitter(ElasticsearchEmitter.dynamic_index('name', 'id')) \
             .set_hosts(['localhost:9200']) \
             .build()
 
