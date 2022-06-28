@@ -21,6 +21,12 @@ from pyflink.common import Duration
 from pyflink.java_gateway import get_gateway
 
 
+__all__ = ['ConsistencyLevel',
+           'MapperOptions',
+           'ClusterBuilder',
+           'CassandraCommitter',
+           'CassandraFailureHandler']
+
 # ---- Classes introduced to construct the MapperOptions ----
 
 
@@ -45,26 +51,19 @@ class ConsistencyLevel(Enum):
         return getattr(JConsistencyLevel, self.name)
 
 
-# ---- Classes introduced to construct the CassandraSink ----
-
-
 class MapperOptions(object):
     """
     This class is used to configure a Mapper after deployment.
     """
 
-    def __init__(self, j_mapper_options):
-        self._j_mapper_options = j_mapper_options
-
-    @staticmethod
-    def simple_mapper_options() -> 'MapperOptions':
+    def __init__(self):
         """
         A simple method to construct MapperOptions.
 
         Example:
         ::
 
-        >>> mapper_option = MapperOptions.simple_mapper_options() \\
+        >>> mapper_option = MapperOptions() \\
         ...    .ttl(1800) \\
         ...    .timestamp(3600) \\
         ...    .consistency_level(ConsistencyLevel.ANY) \\
@@ -73,14 +72,14 @@ class MapperOptions(object):
         """
         JSimpleMapperOptions = get_gateway().jvm.org.apache.flink.streaming.connectors. \
             cassandra.SimpleMapperOptions
-        return MapperOptions(JSimpleMapperOptions())
+        self._j_mapper_options = JSimpleMapperOptions()
 
     def ttl(self, ttl: int) -> 'MapperOptions':
         """
         Creates a new Option object to add time-to-live to a mapper operation. This is only
         valid for save operations.
         """
-        self._j_mapper_options.ttl = ttl
+        self._j_mapper_options.ttl(ttl)
         return self
 
     def timestamp(self, timestamp: int) -> 'MapperOptions':
@@ -88,7 +87,7 @@ class MapperOptions(object):
         Creates a new Option object to add a timestamp to a mapper operation. This is only
         valid for save and delete operations.
         """
-        self._j_mapper_options.timestamp = timestamp
+        self._j_mapper_options.timestamp(timestamp)
         return self
 
     def consistency_level(self, cl: ConsistencyLevel) -> 'MapperOptions':
@@ -152,6 +151,8 @@ class CassandraCommitter(object):
         """
         CheckpointCommitter that saves information about completed checkpoints within a separate
         table in a cassandra database.
+
+        Entries are in the form |operator_id | subtask_id | last_completed_checkpoint|
         """
         JCassandraCommitter = get_gateway().jvm.org.apache.flink.streaming.connectors.\
             cassandra.CassandraCommitter
@@ -171,9 +172,10 @@ class CassandraFailureHandler(object):
         self._j_cassandra_failure_handler = j_cassandra_failure_handler
 
     @staticmethod
-    def default_failure_handler() -> 'CassandraFailureHandler':
+    def no_op() -> 'CassandraFailureHandler':
         """
         A CassandraFailureHandler that simply fails the sink on any failures.
+        This is also the default failure handler if not specified.
         """
         return CassandraFailureHandler(get_gateway().jvm.org.apache.flink.streaming.connectors.
                                        cassandra.NoOpCassandraFailureHandler())
@@ -341,7 +343,8 @@ class CassandraSink(object):
                 failure_handler._j_cassandra_failure_handler)
             return self
 
-        def set_max_concurrent_requests(self, max_concurrent_requests: int,
+        def set_max_concurrent_requests(self,
+                                        max_concurrent_requests: int,
                                         duration: Duration = None) \
                 -> 'CassandraSink.CassandraSinkBuilder':
             """

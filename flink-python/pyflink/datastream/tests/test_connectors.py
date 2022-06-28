@@ -32,7 +32,7 @@ from pyflink.datastream.connectors import FlinkKafkaConsumer, FlinkKafkaProducer
     RMQConnectionConfig, PulsarSource, StartCursor, PulsarDeserializationSchema, StopCursor, \
     SubscriptionType, PulsarSink, PulsarSerializationSchema, DeliveryGuarantee, TopicRoutingMode, \
     MessageDelayer, FlinkKinesisConsumer, KinesisStreamsSink, KinesisFirehoseSink
-from pyflink.datastream.connectors.cassandra import CassandraSink
+from pyflink.datastream.connectors.cassandra import CassandraSink, MapperOptions, ConsistencyLevel
 from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
@@ -742,8 +742,16 @@ class CassandraSinkTest(ConnectorTestBase):
 
         cassandra_sink = cassandra_sink_builder\
             .set_host('localhost', 9876) \
+            .set_default_key_space('test_key_space') \
             .set_query('query') \
             .enable_ignore_null_fields() \
+            .set_mapper_options(MapperOptions()
+                                .ttl(1)
+                                .timestamp(100)
+                                .tracing(True)
+                                .if_not_exists(False)
+                                .consistency_level(ConsistencyLevel.ANY)
+                                .save_null_fields(True)) \
             .set_max_concurrent_requests(1000) \
             .build()
 

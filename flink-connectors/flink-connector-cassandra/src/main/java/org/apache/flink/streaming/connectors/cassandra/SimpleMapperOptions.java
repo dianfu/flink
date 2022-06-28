@@ -24,24 +24,23 @@ import com.datastax.driver.mapping.Mapper;
 
 import java.util.ArrayList;
 
-/** A simple MapperOptions implement which is currently used in PyFlink Cassandra connector. */
+/** A simple MapperOptions implementation. */
 public class SimpleMapperOptions implements MapperOptions {
 
     private static final long serialVersionUID = 1L;
-    ArrayList<Mapper.Option> options;
+
+    private final ArrayList<Mapper.Option> options;
 
     public SimpleMapperOptions() {
         options = new ArrayList<>();
     }
 
     /**
-     * Creates a new SimpleMapperOptions object to add time-to-live to a mapper operation. This is
-     * only valid for save operations.
+     * Adds time-to-live option to a mapper operation. This is only valid for save operations.
      *
      * <p>Note that this option is only available if using {@link ProtocolVersion#V2} or above.
      *
      * @param ttl the TTL (in seconds).
-     * @return the SimpleMapperOptions.
      */
     public SimpleMapperOptions ttl(int ttl) {
         options.add(Mapper.Option.ttl(ttl));
@@ -49,13 +48,12 @@ public class SimpleMapperOptions implements MapperOptions {
     }
 
     /**
-     * Creates a new SimpleMapperOptions object to add a timestamp to a mapper operation. This is
-     * only valid for save and delete operations.
+     * Adds a timestamp option to a mapper operation. This is only valid for save and delete
+     * operations.
      *
      * <p>Note that this option is only available if using {@link ProtocolVersion#V2} or above.
      *
      * @param timestamp the timestamp (in microseconds).
-     * @return the SimpleMapperOptions.
      */
     public SimpleMapperOptions timestamp(long timestamp) {
         options.add(Mapper.Option.timestamp(timestamp));
@@ -63,8 +61,8 @@ public class SimpleMapperOptions implements MapperOptions {
     }
 
     /**
-     * Creates a new SimpleMapperOptions object to add a consistency level value to a mapper
-     * operation. This is valid for save, delete and get operations.
+     * Adds a consistency level value option to a mapper operation. This is valid for save, delete
+     * and get operations.
      *
      * <p>Note that the consistency level can also be defined at the mapper level, as a parameter of
      * the {@link com.datastax.driver.mapping.annotations.Table} annotation (this is redundant for
@@ -72,7 +70,6 @@ public class SimpleMapperOptions implements MapperOptions {
      * will always take precedence over the annotation.
      *
      * @param cl the {@link com.datastax.driver.core.ConsistencyLevel} to use for the operation.
-     * @return the SimpleMapperOptions.
      */
     public SimpleMapperOptions consistencyLevel(ConsistencyLevel cl) {
         options.add(Mapper.Option.consistencyLevel(cl));
@@ -80,11 +77,10 @@ public class SimpleMapperOptions implements MapperOptions {
     }
 
     /**
-     * Creates a new SimpleMapperOptions object to enable query tracing for a mapper operation. This
-     * is valid for save, delete and get operations.
+     * Enables query tracing for a mapper operation. This is valid for save, delete and get
+     * operations.
      *
      * @param enabled whether to enable tracing.
-     * @return the SimpleMapperOptions.
      */
     public SimpleMapperOptions tracing(boolean enabled) {
         options.add(Mapper.Option.tracing(enabled));
@@ -92,13 +88,12 @@ public class SimpleMapperOptions implements MapperOptions {
     }
 
     /**
-     * Creates a new SimpleMapperOptions object to specify whether null entity fields should be
-     * included in insert queries. This option is valid only for save operations.
+     * Specifies whether null entity fields should be included in insert queries. This option is
+     * valid only for save operations.
      *
      * <p>If this option is not specified, it defaults to {@code true} (null fields are saved).
      *
      * @param enabled whether to include null fields in queries.
-     * @return the SimpleMapperOptions.
      */
     public SimpleMapperOptions saveNullFields(boolean enabled) {
         options.add(Mapper.Option.saveNullFields(enabled));
@@ -106,28 +101,21 @@ public class SimpleMapperOptions implements MapperOptions {
     }
 
     /**
-     * Creates a new SimpleMapperOptions object to specify whether an IF NOT EXISTS clause should be
-     * included in insert queries. This option is valid only for save operations.
+     * Specifies whether an IF NOT EXISTS clause should be included in insert queries. This option
+     * is valid only for save operations.
      *
      * <p>If this option is not specified, it defaults to {@code false} (IF NOT EXISTS statements
      * are not used).
      *
      * @param enabled whether to include an IF NOT EXISTS clause in queries.
-     * @return the SimpleMapperOptions.
      */
     public SimpleMapperOptions ifNotExists(boolean enabled) {
         options.add(Mapper.Option.ifNotExists(enabled));
         return this;
     }
 
-    /**
-     * Returns an array of {@link com.datastax.driver.mapping.Mapper.Option} that are used configure
-     * the mapper.
-     *
-     * @return array of options used to configure the mapper.
-     */
     @Override
     public Mapper.Option[] getMapperOptions() {
-        return new Mapper.Option[options.size()];
+        return options.toArray(new Mapper.Option[0]);
     }
 }
