@@ -287,13 +287,6 @@ class CassandraSink(object):
             self._j_cassandra_sink_builder.setQuery(query)
             return self
 
-        def set_default_key_space(self, key_space: str) -> 'CassandraSink.CassandraSinkBuilder':
-            """
-            Sets the keyspace to be used.
-            """
-            self._j_cassandra_sink_builder.setDefaultKeyspace(key_space)
-            return self
-
         def set_host(self, host: str, port: int = 9042) -> 'CassandraSink.CassandraSinkBuilder':
             """
             Sets the cassandra host/port to connect to.

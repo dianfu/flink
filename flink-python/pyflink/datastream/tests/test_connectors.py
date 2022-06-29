@@ -742,7 +742,6 @@ class CassandraSinkTest(ConnectorTestBase):
 
         cassandra_sink = cassandra_sink_builder\
             .set_host('localhost', 9876) \
-            .set_default_key_space('test_key_space') \
             .set_query('query') \
             .enable_ignore_null_fields() \
             .set_mapper_options(MapperOptions()
