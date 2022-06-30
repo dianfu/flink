@@ -22,7 +22,7 @@ from pyflink.common.serialization import SimpleStringSchema, DeserializationSche
     JsonRowDeserializationSchema, CsvRowDeserializationSchema, AvroRowDeserializationSchema
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy
-from pyflink.datastream.connectors.kafka_new import KafkaSource, KafkaTopicPartition, \
+from pyflink.datastream.connectors.kafka import KafkaSource, KafkaTopicPartition, \
     KafkaOffsetsInitializer, KafkaOffsetResetStrategy
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.java_gateway import get_gateway
