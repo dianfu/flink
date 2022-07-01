@@ -815,4 +815,4 @@ class KafkaOffsetsInitializer(object):
         JOffsetsInitializer = get_gateway().jvm.org.apache.flink.connector.kafka.source. \
             enumerator.initializer.OffsetsInitializer
         return KafkaOffsetsInitializer(JOffsetsInitializer.offsets(
-                j_map_wrapper.asMap(), offset_reset_strategy._to_j_offset_reset_strategy()))
+            j_map_wrapper.asMap(), offset_reset_strategy._to_j_offset_reset_strategy()))
