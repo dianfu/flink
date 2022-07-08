@@ -21,7 +21,7 @@ on:
 
 jobs:
   build-documentation:
-    if: github.repository == 'apache/flink'
+    #if: github.repository == 'apache/flink'
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
