@@ -2098,9 +2098,8 @@ class AllWindowedStream(object):
         Example:
         ::
 
-            >>> ds.key_by(lambda x: x[1]) \\
-            ...     .window_all(TumblingEventTimeWindows.of(Time.seconds(5))) \\
-            ...     .reduce(lambda a, b: a[0] + b[0], b[1])
+            >>> ds.window_all(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...   .reduce(lambda a, b: a[0] + b[0], b[1])
 
         :param reduce_function: The reduce function.
         :param window_function: The window function.
@@ -2163,11 +2162,11 @@ class AllWindowedStream(object):
             ...
             ...     def merge(self, a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
             ...         return a[0] + b[0], a[1] + b[1]
-            >>> ds.key_by(lambda x: x[1]) \\
-            ...     .window_all(TumblingEventTimeWindows.of(Time.seconds(5))) \\
-            ...     .aggregate(AverageAggregate(),
-            ...                accumulator_type=Types.TUPLE([Types.LONG(), Types.LONG()]),
-            ...                output_type=Types.DOUBLE())
+            ...
+            >>> ds.window_all(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...   .aggregate(AverageAggregate(),
+            ...              accumulator_type=Types.TUPLE([Types.LONG(), Types.LONG()]),
+            ...              output_type=Types.DOUBLE())
 
         :param aggregate_function: The aggregation function that is used for incremental
                                    aggregation.

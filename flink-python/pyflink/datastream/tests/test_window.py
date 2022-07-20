@@ -453,7 +453,7 @@ class WindowTests(PyFlinkStreamingTestCase):
         expected = ['(0,5,4)', '(15,20,1)', '(5,10,3)']
         self.assert_equals_sorted(expected, results)
 
-    def test_window_all_reduce_passthrough(self):
+    def test_window_all_reduce(self):
         self.env.set_parallelism(1)
         data_stream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
@@ -466,7 +466,7 @@ class WindowTests(PyFlinkStreamingTestCase):
                     output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
-        self.env.execute('test_window_all_reduce_passthrough')
+        self.env.execute('test_window_all_reduce')
         results = self.test_sink.get_results()
         expected = ['(a,15)', '(a,6)', '(a,23)']
         self.assert_equals_sorted(expected, results)
@@ -502,7 +502,7 @@ class WindowTests(PyFlinkStreamingTestCase):
                     "current window start at 15, reduce result ('a', 15)"]
         self.assert_equals_sorted(expected, results)
 
-    def test_window_all_aggregate_passthrough(self):
+    def test_window_all_aggregate(self):
         self.env.set_parallelism(1)
         data_stream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
@@ -541,7 +541,7 @@ class WindowTests(PyFlinkStreamingTestCase):
                        output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
-        self.env.execute('test_window_all_aggregate_passthrough')
+        self.env.execute('test_window_all_aggregate')
         results = self.test_sink.get_results()
         expected = ['(a,-1)', '(b,-1)', '(b,1)']
         self.assert_equals_sorted(expected, results)
