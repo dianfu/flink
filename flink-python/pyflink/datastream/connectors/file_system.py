@@ -31,6 +31,11 @@ from pyflink.datastream.utils import JavaObjectWrapper
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import to_jarray
 
+__all__ = [
+    'FileCompactor',
+    'FileCompactStrategy'
+]
+
 
 # ---- FileSource ----
 
@@ -442,12 +447,26 @@ class RollingPolicy(JavaObjectWrapper):
 
 
 class DefaultRollingPolicy(RollingPolicy):
+    """
+    The default implementation of the RollingPolicy.
+
+    This policy rolls a part file if:
+
+        - there is no open part file,
+        - the current file has reached the maximum bucket size (by default 128MB),
+        - the current file is older than the roll over interval (by default 60 sec), or
+        - the current file has not been written to for more than the allowed inactivityTime (by
+          default 60 sec).
+    """
 
     def __init__(self, j_rolling_policy):
         super().__init__(j_rolling_policy)
 
 
 class OnCheckpointRollingPolicy(RollingPolicy):
+    """
+    A RollingPolicy which rolls (ONLY) on every checkpoint.
+    """
 
     def __init__(self, j_rolling_policy):
         super().__init__(j_rolling_policy)
@@ -518,12 +537,9 @@ class FileCompactStrategy(JavaObjectWrapper):
     class Builder(object):
 
         def __init__(self):
-            compactor = get_gateway().jvm.org.apache.flink.connector.file.sink.compactor
-            self._j_builder = compactor.FileCompactStrategy.Builder.newBuilder()
-
-        @classmethod
-        def new_builder(cls) -> 'FileCompactStrategy.Builder':
-            return cls()
+            JFileCompactStrategy = get_gateway().jvm.org.apache.flink.connector.file.sink.\
+                compactor.FileCompactStrategy
+            self._j_builder = JFileCompactStrategy.Builder.newBuilder()
 
         def build(self) -> 'FileCompactStrategy':
             return FileCompactStrategy(self._j_builder.build())
@@ -570,11 +586,12 @@ class FileCompactor(JavaObjectWrapper):
         Returns a file compactor that simply concat the compacting files. The file_delimiter will be
         added between neighbouring files if provided.
         """
-        compactor = get_gateway().jvm.org.apache.flink.connector.file.sink.compactor
+        JConcatFileCompactor = get_gateway().jvm.org.apache.flink.connector.file.sink.compactor.\
+            ConcatFileCompactor
         if file_delimiter:
-            return FileCompactor(compactor.ConcatFileCompactor(file_delimiter))
+            return FileCompactor(JConcatFileCompactor(file_delimiter))
         else:
-            return FileCompactor(compactor.ConcatFileCompactor())
+            return FileCompactor(JConcatFileCompactor())
 
     @staticmethod
     def identity_file_compactor():
@@ -582,8 +599,9 @@ class FileCompactor(JavaObjectWrapper):
         Returns a file compactor that directly copy the content of the only input file to the
         output.
         """
-        compactor = get_gateway().jvm.org.apache.flink.connector.file.sink.compactor
-        return FileCompactor(compactor.IdentityFileCompactor())
+        JIdentityFileCompactor = get_gateway().jvm.org.apache.flink.connector.file.sink.compactor.\
+            IdentityFileCompactor
+        return FileCompactor(JIdentityFileCompactor())
 
 
 class FileSink(Sink, SupportsPreprocessing):
@@ -656,10 +674,6 @@ class FileSink(Sink, SupportsPreprocessing):
             self._j_builder.withBucketAssigner(bucket_assigner.get_java_object())
             return self
 
-        @abstractmethod
-        def with_rolling_policy(self, rolling_policy):
-            pass
-
         def with_output_file_config(self, output_file_config: OutputFileConfig):
             self._j_builder.withOutputFileConfig(output_file_config.get_java_object())
             return self
@@ -671,6 +685,10 @@ class FileSink(Sink, SupportsPreprocessing):
         def disable_compact(self):
             self._j_builder.disableCompact()
             return self
+
+        @abstractmethod
+        def with_rolling_policy(self, rolling_policy):
+            pass
 
         def build(self):
             return FileSink(self._j_builder.build())
