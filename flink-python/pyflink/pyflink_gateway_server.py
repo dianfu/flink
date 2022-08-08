@@ -216,8 +216,6 @@ def construct_test_classpath():
         "flink-python/target/test-dependencies/*",
         "flink-python/target/artifacts/testDataStream.jar",
         "flink-python/target/flink-python*-tests.jar",
-        ("flink-test-utils-parent/flink-connector-test-utils/target/"
-         "flink-connector-test-utils-*.jar"),
     ]
     test_jars = []
     flink_source_root = _find_flink_source_root()
