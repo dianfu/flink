@@ -173,7 +173,7 @@ public class CsvFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
         };
     }
 
-    static BulkWriter.Factory<RowData> createCsvBulkWriterFactory(
+    public static BulkWriter.Factory<RowData> createCsvBulkWriterFactory(
             CsvSchema schema, RowType rowType) {
         final RowDataToCsvConverter converter = RowDataToCsvConverters.createRowConverter(rowType);
 
