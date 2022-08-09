@@ -183,7 +183,7 @@ class InternalKeyedBroadcastProcessFunctionReadOnlyContext(
         super(InternalKeyedBroadcastProcessFunctionReadOnlyContext, self).__init__(
             j_context, j_operator_state_backend)
         self._key_converter = from_type_info_proto(key_type_info)
-        self._timer_service = TimerServiceImpl(self._context.timerService())
+        self._timer_service = TimerServiceImpl(self._j_context.timerService())
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
         return ReadOnlyBroadcastStateImpl(
@@ -195,7 +195,7 @@ class InternalKeyedBroadcastProcessFunctionReadOnlyContext(
         return self._timer_service
 
     def get_current_key(self):
-        return self._key_converter.to_internal(self._context.getCurrentKey())
+        return self._key_converter.to_internal(self._j_context.getCurrentKey())
 
 
 class InternalKeyedBroadcastProcessFunctionOnTimerContext(
@@ -206,7 +206,7 @@ class InternalKeyedBroadcastProcessFunctionOnTimerContext(
     def __init__(self, j_timer_context, key_type_info, j_operator_state_backend):
         super(InternalKeyedBroadcastProcessFunctionOnTimerContext, self).__init__(
             j_timer_context, j_operator_state_backend)
-        self._timer_service = TimerServiceImpl(self._context.timerService())
+        self._timer_service = TimerServiceImpl(self._j_context.timerService())
         self._key_converter = from_type_info_proto(key_type_info)
 
     def get_broadcast_state(self, state_descriptor: MapStateDescriptor) -> ReadOnlyBroadcastState:
@@ -225,10 +225,10 @@ class InternalKeyedBroadcastProcessFunctionOnTimerContext(
         return self._timer_service
 
     def timestamp(self) -> int:
-        return self._context.timestamp()
+        return self._j_context.timestamp()
 
     def time_domain(self) -> TimeDomain:
-        return TimeDomain(self._context.timeDomain())
+        return TimeDomain(self._j_context.timeDomain())
 
     def get_current_key(self):
-        return self._key_converter.to_internal(self._context.getCurrentKey())
+        return self._key_converter.to_internal(self._j_context.getCurrentKey())
