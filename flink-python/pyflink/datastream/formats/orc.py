@@ -18,7 +18,7 @@
 from typing import Optional
 
 from pyflink.common import Configuration
-from pyflink.datastream.connectors.file_system import BulkWriterFactory, RowDataBulkWriterFactory
+from pyflink.common.serialization import BulkWriterFactory, RowDataBulkWriterFactory
 from pyflink.datastream.utils import create_hadoop_configuration, create_java_properties
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import _to_java_data_type, RowType
@@ -31,8 +31,8 @@ __all__ = [
 
 class OrcBulkWriters(object):
     """
-    Convenient builder to create a :class:`~connectors.file_system.BulkWriterFactory` that writes
-    Row records with a defined RowType into Orc files in a batch fashion.
+    Convenient builder to create a :class:`~pyflink.common.serialization.BulkWriterFactory` that
+    writes records with a predefined schema into Orc files in a batch fashion.
 
     .. versionadded:: 1.16.0
     """
@@ -43,8 +43,8 @@ class OrcBulkWriters(object):
                      hadoop_config: Optional[Configuration] = None) \
             -> BulkWriterFactory:
         """
-        Create a RowDataBulkWriterFactory that writes Row records with a defined RowType into Orc
-        files in a batch fashion.
+        Create a :class:`~pyflink.common.serialization.BulkWriterFactory` that writes records
+        with a predefined schema into Orc files in a batch fashion.
 
         Example:
         ::
@@ -69,6 +69,10 @@ class OrcBulkWriters(object):
         Note that in the above example, an identity map to indicate its RowTypeInfo is necessary
         before ``sink_to`` when ``ds`` is a source stream producing **RowData** records,
         because RowDataBulkWriterFactory assumes the input record type is Row.
+
+        :param row_type: Row type of orc table.
+        :param writer_properties: Properties that can be used in ORC WriterOptions.
+        :param hadoop_config: Hadoop configurations used in ORC WriterOptions.
         """
         if not isinstance(row_type, RowType):
             raise TypeError('row_type must be an instance of RowType')

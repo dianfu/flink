@@ -17,17 +17,20 @@
 ################################################################################
 from typing import Optional
 
-from pyflink.common.typeinfo import _from_java_type
-from pyflink.datastream.connectors.file_system import BulkWriterFactory, RowDataBulkWriterFactory, \
-    StreamFormat
+from pyflink.common.serialization import BulkWriterFactory, RowDataBulkWriterFactory, \
+    SerializationSchema, DeserializationSchema
+from pyflink.common.typeinfo import _from_java_type, TypeInformation
+from pyflink.datastream.connectors.file_system import StreamFormat
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, DataTypes, _to_java_data_type, RowType, NumericType
 
 __all__ = [
-    'CsvBulkWriter',
-    'CsvReaderFormat',
     'CsvSchema',
-    'CsvSchemaBuilder'
+    'CsvSchemaBuilder',
+    'CsvReaderFormat',
+    'CsvBulkWriter',
+    'CsvRowDeserializationSchema',
+    'CsvRowSerializationSchema'
 ]
 
 
@@ -74,7 +77,7 @@ class CsvSchema(object):
 
 class CsvSchemaBuilder(object):
     """
-    CsvSchemaBuilder is for building a :class:`CsvSchemaBuilder`, corresponding to Java
+    CsvSchemaBuilder is for building a :class:`~CsvSchema`, corresponding to Java
     ``com.fasterxml.jackson.dataformat.csv.CsvSchema.Builder`` class.
 
     .. versionadded:: 1.16.0
@@ -88,7 +91,7 @@ class CsvSchemaBuilder(object):
 
     def build(self) -> 'CsvSchema':
         """
-        Build the :class:`CsvSchema`.
+        Build the :class:`~CsvSchema`.
         """
         return CsvSchema(self._j_schema_builder.build(), DataTypes.ROW(self._fields))
 
@@ -279,7 +282,7 @@ class CsvSchemaBuilder(object):
 
 class CsvReaderFormat(StreamFormat):
     """
-    The :class:`StreamFormat` for reading csv files.
+    The :class:`~StreamFormat` for reading csv files.
 
     Example:
     ::
@@ -321,8 +324,8 @@ class CsvReaderFormat(StreamFormat):
 
 class CsvBulkWriter(object):
     """
-    CsvBulkWriter is for building :class:`BulkWriterFactory` to write Rows with a predefined CSV
-    schema to partitioned files in a bulk fashion.
+    CsvBulkWriter is for building :class:`~pyflink.common.serialization.BulkWriterFactory` to write
+    Rows with a predefined CSV schema to partitioned files in a bulk fashion.
 
     Example:
     ::
@@ -344,7 +347,8 @@ class CsvBulkWriter(object):
     @staticmethod
     def for_schema(schema: 'CsvSchema') -> 'BulkWriterFactory':
         """
-        Builds a :class:`BulkWriterFactory` for writing records to files in CSV format.
+        Creates a :class:`~pyflink.common.serialization.BulkWriterFactory` for writing records to
+        files in CSV format.
         """
         jvm = get_gateway().jvm
         csv = jvm.org.apache.flink.formats.csv
@@ -353,3 +357,114 @@ class CsvBulkWriter(object):
             schema._j_schema,
             _to_java_data_type(schema._row_type))
         return RowDataBulkWriterFactory(j_factory, schema._row_type)
+
+
+class CsvRowDeserializationSchema(DeserializationSchema):
+    """
+    Deserialization schema from CSV to Flink types. Deserializes a byte[] message as a JsonNode and
+    converts it to Row.
+
+    Failure during deserialization are forwarded as wrapped IOException.
+    """
+
+    def __init__(self, j_deserialization_schema):
+        super(CsvRowDeserializationSchema, self).__init__(
+            j_deserialization_schema=j_deserialization_schema)
+
+    class Builder(object):
+        """
+        A builder for creating a CsvRowDeserializationSchema.
+        """
+        def __init__(self, type_info: TypeInformation):
+            if type_info is None:
+                raise TypeError("Type information must not be None")
+            self._j_builder = get_gateway().jvm\
+                .org.apache.flink.formats.csv.CsvRowDeserializationSchema.Builder(
+                type_info.get_java_type_info())
+
+        def set_field_delimiter(self, delimiter: str):
+            self._j_builder = self._j_builder.setFieldDelimiter(delimiter)
+            return self
+
+        def set_allow_comments(self, allow_comments: bool):
+            self._j_builder = self._j_builder.setAllowComments(allow_comments)
+            return self
+
+        def set_array_element_delimiter(self, delimiter: str):
+            self._j_builder = self._j_builder.setArrayElementDelimiter(delimiter)
+            return self
+
+        def set_quote_character(self, c: str):
+            self._j_builder = self._j_builder.setQuoteCharacter(c)
+            return self
+
+        def set_escape_character(self, c: str):
+            self._j_builder = self._j_builder.setEscapeCharacter(c)
+            return self
+
+        def set_null_literal(self, null_literal: str):
+            self._j_builder = self._j_builder.setNullLiteral(null_literal)
+            return self
+
+        def set_ignore_parse_errors(self, ignore_parse_errors: bool):
+            self._j_builder = self._j_builder.setIgnoreParseErrors(ignore_parse_errors)
+            return self
+
+        def build(self):
+            j_csv_row_deserialization_schema = self._j_builder.build()
+            return CsvRowDeserializationSchema(
+                j_deserialization_schema=j_csv_row_deserialization_schema)
+
+
+class CsvRowSerializationSchema(SerializationSchema):
+    """
+    Serialization schema that serializes an object of Flink types into a CSV bytes. Serializes the
+    input row into an ObjectNode and converts it into byte[].
+
+    Result byte[] messages can be deserialized using CsvRowDeserializationSchema.
+    """
+    def __init__(self, j_csv_row_serialization_schema):
+        super(CsvRowSerializationSchema, self).__init__(j_csv_row_serialization_schema)
+
+    class Builder(object):
+        """
+        A builder for creating a CsvRowSerializationSchema.
+        """
+        def __init__(self, type_info: TypeInformation):
+            if type_info is None:
+                raise TypeError("Type information must not be None")
+            self._j_builder = get_gateway().jvm\
+                .org.apache.flink.formats.csv.CsvRowSerializationSchema.Builder(
+                type_info.get_java_type_info())
+
+        def set_field_delimiter(self, c: str):
+            self._j_builder = self._j_builder.setFieldDelimiter(c)
+            return self
+
+        def set_line_delimiter(self, delimiter: str):
+            self._j_builder = self._j_builder.setLineDelimiter(delimiter)
+            return self
+
+        def set_array_element_delimiter(self, delimiter: str):
+            self._j_builder = self._j_builder.setArrayElementDelimiter(delimiter)
+            return self
+
+        def disable_quote_character(self):
+            self._j_builder = self._j_builder.disableQuoteCharacter()
+            return self
+
+        def set_quote_character(self, c: str):
+            self._j_builder = self._j_builder.setQuoteCharacter(c)
+            return self
+
+        def set_escape_character(self, c: str):
+            self._j_builder = self._j_builder.setEscapeCharacter(c)
+            return self
+
+        def set_null_literal(self, s: str):
+            self._j_builder = self._j_builder.setNullLiteral(s)
+            return self
+
+        def build(self):
+            j_serialization_schema = self._j_builder.build()
+            return CsvRowSerializationSchema(j_csv_row_serialization_schema=j_serialization_schema)
