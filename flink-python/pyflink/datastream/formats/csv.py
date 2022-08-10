@@ -15,14 +15,16 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from pyflink.common.serialization import BulkWriterFactory, RowDataBulkWriterFactory, \
     SerializationSchema, DeserializationSchema
 from pyflink.common.typeinfo import _from_java_type, TypeInformation
 from pyflink.datastream.connectors.file_system import StreamFormat
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import DataType, DataTypes, _to_java_data_type, RowType, NumericType
+
+if TYPE_CHECKING:
+    from pyflink.table.types import DataType, RowType, NumericType
 
 __all__ = [
     'CsvSchema',
@@ -42,9 +44,9 @@ class CsvSchema(object):
     .. versionadded:: 1.16.0
     """
 
-    def __init__(self, j_schema, row_type: RowType):
+    def __init__(self, j_schema, row_type: 'RowType'):
         self._j_schema = j_schema
-        self._row_type = row_type  # type: RowType
+        self._row_type = row_type
         self._type_info = None
 
     @staticmethod
@@ -56,6 +58,7 @@ class CsvSchema(object):
 
     def get_type_info(self):
         if self._type_info is None:
+            from pyflink.table.types import _to_java_data_type
             jvm = get_gateway().jvm
             j_type_info = jvm.org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter \
                 .toLegacyTypeInfo(_to_java_data_type(self._row_type))
@@ -93,12 +96,13 @@ class CsvSchemaBuilder(object):
         """
         Build the :class:`~CsvSchema`.
         """
+        from pyflink.table.types import DataTypes
         return CsvSchema(self._j_schema_builder.build(), DataTypes.ROW(self._fields))
 
     def add_array_column(self,
                          name: str,
                          separator: str = ';',
-                         element_type: Optional[DataType] = DataTypes.STRING()) \
+                         element_type: Optional['DataType'] = None) \
             -> 'CsvSchemaBuilder':
         """
         Add an array column to schema, the type of elements could be specified via ``element_type``,
@@ -108,6 +112,9 @@ class CsvSchemaBuilder(object):
         :param separator: Text separator of array elements, default to ``;``.
         :param element_type: DataType of array elements, default to ``DataTypes.STRING()``.
         """
+        from pyflink.table.types import DataTypes
+        if element_type is None:
+            element_type = DataTypes.STRING()
         self._j_schema_builder.addArrayColumn(name, separator)
         self._fields.append(DataTypes.FIELD(name, DataTypes.ARRAY(element_type)))
         return self
@@ -118,12 +125,13 @@ class CsvSchemaBuilder(object):
 
         :param name: Name of the column.
         """
+        from pyflink.table.types import DataTypes
         self._j_schema_builder.addBooleanColumn(name)
         self._fields.append(DataTypes.FIELD(name, DataTypes.BOOLEAN()))
         return self
 
     def add_number_column(self, name: str,
-                          number_type: Optional[NumericType] = DataTypes.BIGINT()) \
+                          number_type: Optional['NumericType'] = None) \
             -> 'CsvSchemaBuilder':
         """
         Add a number column to schema, the type of number could be specified via ``number_type``.
@@ -131,6 +139,9 @@ class CsvSchemaBuilder(object):
         :param name: Name of the column.
         :param number_type: DataType of the number, default to ``DataTypes.BIGINT()``.
         """
+        from pyflink.table.types import DataTypes
+        if number_type is None:
+            number_type = DataTypes.BIGINT()
         self._j_schema_builder.addNumberColumn(name)
         self._fields.append(DataTypes.FIELD(name, number_type))
         return self
@@ -141,6 +152,7 @@ class CsvSchemaBuilder(object):
 
         :param name: Name of the column.
         """
+        from pyflink.table.types import DataTypes
         self._j_schema_builder.addColumn(name)
         self._fields.append(DataTypes.FIELD(name, DataTypes.STRING()))
         return self
@@ -313,6 +325,7 @@ class CsvReaderFormat(StreamFormat):
         """
         Builds a :class:`CsvReaderFormat` using `CsvSchema`.
         """
+        from pyflink.table.types import _to_java_data_type
         jvm = get_gateway().jvm
         j_csv_format = jvm.org.apache.flink.formats.csv.PythonCsvUtils \
             .createCsvReaderFormat(
@@ -350,6 +363,8 @@ class CsvBulkWriters(object):
         Creates a :class:`~pyflink.common.serialization.BulkWriterFactory` for writing records to
         files in CSV format.
         """
+        from pyflink.table.types import _to_java_data_type
+
         jvm = get_gateway().jvm
         csv = jvm.org.apache.flink.formats.csv
 

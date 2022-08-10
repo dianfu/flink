@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from pyflink.common import Configuration
 from pyflink.common.serialization import BulkWriterFactory, RowDataBulkWriterFactory
@@ -23,8 +23,9 @@ from pyflink.datastream.connectors.file_system import StreamFormat, BulkFormat
 from pyflink.datastream.formats.avro import AvroSchema
 from pyflink.datastream.utils import create_hadoop_configuration
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import RowType, _to_java_data_type
 
+if TYPE_CHECKING:
+    from pyflink.table.types import RowType
 
 __all__ = [
     'AvroParquetReaders',
@@ -142,7 +143,7 @@ class ParquetColumnarRowInputFormat(BulkFormat):
     """
 
     def __init__(self,
-                 row_type: RowType,
+                 row_type: 'RowType',
                  hadoop_config: Optional[Configuration] = None,
                  batch_size: int = 2048,
                  is_utc_timestamp: bool = False,
@@ -150,6 +151,7 @@ class ParquetColumnarRowInputFormat(BulkFormat):
         if not hadoop_config:
             hadoop_config = Configuration()
 
+        from pyflink.table.types import _to_java_data_type
         jvm = get_gateway().jvm
         j_row_type = _to_java_data_type(row_type).getLogicalType()
         produced_type_info = jvm.org.apache.flink.table.runtime.typeutils. \
@@ -170,7 +172,7 @@ class ParquetBulkWriters(object):
     """
 
     @staticmethod
-    def for_row_type(row_type: RowType,
+    def for_row_type(row_type: 'RowType',
                      hadoop_config: Optional[Configuration] = None,
                      utc_timestamp: bool = False) -> 'BulkWriterFactory':
         """
@@ -209,6 +211,7 @@ class ParquetBulkWriters(object):
         if not hadoop_config:
             hadoop_config = Configuration()
 
+        from pyflink.table.types import _to_java_data_type
         jvm = get_gateway().jvm
         JParquetRowDataBuilder = jvm.org.apache.flink.formats.parquet.row.ParquetRowDataBuilder
         return RowDataBulkWriterFactory(JParquetRowDataBuilder.createWriterFactory(

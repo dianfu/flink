@@ -15,14 +15,16 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from pyflink.common import Configuration
 from pyflink.common.serialization import BulkWriterFactory, RowDataBulkWriterFactory
 from pyflink.datastream.utils import create_hadoop_configuration, create_java_properties
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import _to_java_data_type, RowType
 from pyflink.util.java_utils import to_jarray
+
+if TYPE_CHECKING:
+    from pyflink.table.types import RowType
 
 __all__ = [
     'OrcBulkWriters'
@@ -38,7 +40,7 @@ class OrcBulkWriters(object):
     """
 
     @staticmethod
-    def for_row_type(row_type: RowType,
+    def for_row_type(row_type: 'RowType',
                      writer_properties: Optional[Configuration] = None,
                      hadoop_config: Optional[Configuration] = None) \
             -> BulkWriterFactory:
@@ -74,9 +76,11 @@ class OrcBulkWriters(object):
         :param writer_properties: Properties that can be used in ORC WriterOptions.
         :param hadoop_config: Hadoop configurations used in ORC WriterOptions.
         """
+        from pyflink.table.types import RowType
         if not isinstance(row_type, RowType):
             raise TypeError('row_type must be an instance of RowType')
 
+        from pyflink.table.types import _to_java_data_type
         j_data_type = _to_java_data_type(row_type)
         jvm = get_gateway().jvm
         j_row_type = j_data_type.getLogicalType()
