@@ -30,7 +30,7 @@ __all__ = [
     'AvroSchema',
     'GenericRecordAvroTypeInfo',
     'AvroInputFormat',
-    'AvroWriters',
+    'AvroBulkWriters',
     'AvroRowDeserializationSchema',
     'AvroRowSerializationSchema'
 ]
@@ -129,7 +129,7 @@ class AvroInputFormat(InputFormat, ResultTypeQueryable):
         return self._type_info
 
 
-class AvroWriters(object):
+class AvroBulkWriters(object):
     """
     Convenience builder to create :class:`~pyflink.common.serialization.BulkWriterFactory` for
     Avro types.
@@ -160,7 +160,7 @@ class AvroWriters(object):
             >>> avro_type_info = GenericRecordAvroTypeInfo(schema)
             >>> ds = env.from_collection([{'array': [1, 2]}], type_info=Types.PICKLED_BYTE_ARRAY())
             >>> sink = FileSink.for_bulk_format(
-            ...     OUTPUT_DIR, AvroWriters.for_generic_record(schema)).build()
+            ...     OUTPUT_DIR, AvroBulkWriters.for_generic_record(schema)).build()
             >>> # A map to indicate its Avro type info is necessary for serialization
             >>> ds.map(lambda e: e, output_type=GenericRecordAvroTypeInfo(schema)) \\
             ...     .sink_to(sink)

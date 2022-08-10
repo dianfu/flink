@@ -28,7 +28,7 @@ __all__ = [
     'CsvSchema',
     'CsvSchemaBuilder',
     'CsvReaderFormat',
-    'CsvBulkWriter',
+    'CsvBulkWriters',
     'CsvRowDeserializationSchema',
     'CsvRowSerializationSchema'
 ]
@@ -322,7 +322,7 @@ class CsvReaderFormat(StreamFormat):
         return CsvReaderFormat(j_csv_format)
 
 
-class CsvBulkWriter(object):
+class CsvBulkWriters(object):
     """
     CsvBulkWriter is for building :class:`~pyflink.common.serialization.BulkWriterFactory` to write
     Rows with a predefined CSV schema to partitioned files in a bulk fashion.
@@ -337,7 +337,7 @@ class CsvBulkWriter(object):
         ...     .set_column_separator('|') \\
         ...     .build()
         >>> sink = FileSink.for_bulk_format(
-        ...     OUTPUT_DIR, CsvBulkWriter.for_schema(schema)).build()
+        ...     OUTPUT_DIR, CsvBulkWriters.for_schema(schema)).build()
         >>> # If ds is a source stream, an identity map before sink is required
         >>> ds.map(lambda e: e, output_type=schema.get_type_info()).sink_to(sink)
 

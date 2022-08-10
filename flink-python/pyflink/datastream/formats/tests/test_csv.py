@@ -23,7 +23,7 @@ from typing import Tuple, List
 from pyflink.common import WatermarkStrategy, Types
 from pyflink.datastream import MapFunction
 from pyflink.datastream.connectors.file_system import FileSource, FileSink
-from pyflink.datastream.formats.csv import CsvSchema, CsvReaderFormat, CsvBulkWriter, \
+from pyflink.datastream.formats.csv import CsvSchema, CsvReaderFormat, CsvBulkWriters, \
     CsvRowSerializationSchema, CsvRowDeserializationSchema
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
@@ -165,7 +165,7 @@ class FileSinkCsvBulkWriterTests(PyFlinkStreamingTestCase):
         ).build()
         ds = self.env.from_source(source, WatermarkStrategy.no_watermarks(), 'csv-source')
         sink = FileSink.for_bulk_format(
-            self.csv_dir_name, CsvBulkWriter.for_schema(schema)
+            self.csv_dir_name, CsvBulkWriters.for_schema(schema)
         ).build()
         ds.map(lambda e: e, output_type=schema.get_type_info()).sink_to(sink)
 
