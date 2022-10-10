@@ -611,8 +611,8 @@ trait ImplicitExpressionConversions {
     Expressions.fromUnixtime(unixtime, format)
 
   /**
-   * Gets the current unix timestamp in seconds. This function is not deterministic which means
-   * the value would be recalculated for each record.
+   * Gets the current unix timestamp in seconds. This function is not deterministic which means the
+   * value would be recalculated for each record.
    */
   def unixTimestamp(): Expression = Expressions.unixTimestamp()
 
