@@ -477,8 +477,7 @@ class UserDefinedFunctionTests(object):
             decimal_cut_func(t.q),
             binary_func(t.r),
             char_func(t.s),
-            varchar_func(t.t)
-            ) \
+            varchar_func(t.t)) \
             .execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
