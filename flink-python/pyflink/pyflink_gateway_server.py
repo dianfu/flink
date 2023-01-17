@@ -286,7 +286,7 @@ def launch_gateway_server_process(env, args):
     if program_args.cluster_type == "local":
         java_executable = find_java_executable()
         log_settings = construct_log_settings(env)
-        jvm_args = env.get('JVM_ARGS', '')
+        jvm_args = env.get('JVM_ARGS', '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005')
         jvm_opts = get_jvm_opts(env)
         classpath = os.pathsep.join(
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])

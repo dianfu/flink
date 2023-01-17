@@ -442,6 +442,7 @@ public class CommonPythonUtil {
             } else if (operand instanceof RexLiteral) {
                 RexLiteral literal = (RexLiteral) operand;
                 inputs.add(convertLiteralToPython(literal, literal.getType().getSqlTypeName()));
+                continue;
             }
 
             assert operand instanceof RexInputRef;
