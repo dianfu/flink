@@ -793,14 +793,18 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         from pyflink.common import WatermarkStrategy
         from pyflink.common.typeinfo import Types
         from pyflink.common.watermark_strategy import TimestampAssigner
-        from pyflink.table import Schema
+        from pyflink.datastream import StreamExecutionEnvironment
+        from pyflink.table import Schema, StreamTableEnvironment
 
         class MyTimestampAssigner(TimestampAssigner):
 
             def extract_timestamp(self, value, record_timestamp) -> int:
                 return int(value[0])
 
-        ds = self.env.from_collection(
+        env = StreamExecutionEnvironment.get_execution_environment()
+        t_env = StreamTableEnvironment.create(env)
+
+        ds = env.from_collection(
             [(1, 42, "a"), (2, 5, "a"), (3, 1000, "c"), (100, 1000, "c")],
             Types.ROW_NAMED(["a", "b", "c"], [Types.LONG(), Types.INT(), Types.STRING()]))
 
@@ -808,7 +812,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             WatermarkStrategy.for_monotonous_timestamps()
             .with_timestamp_assigner(MyTimestampAssigner()))
 
-        table = self.t_env.from_data_stream(
+        table = t_env.from_data_stream(
             ds,
             Schema.new_builder()
                   .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)")
@@ -821,8 +825,8 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a'], [DataTypes.INT()])
-        self.t_env.register_table_sink("Results", table_sink)
-        table.map(inc).execute_insert("Result").wait()
+        t_env.register_table_sink("Results", table_sink)
+        table.map(inc).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ['+I[42]', '+I[5]', '+I[1000]', '+I[1000]'])
