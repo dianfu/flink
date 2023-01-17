@@ -819,14 +819,10 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         def inc(input_row):
             return Row(input_row.b)
 
-        sink_table = generate_random_table_name()
-        sink_table_ddl = f"""
-                    CREATE TABLE {sink_table}(
-                        a INT
-                    ) WITH ('connector'='test-sink')
-                """
-        self.t_env.execute_sql(sink_table_ddl)
-        table.map(inc).execute_insert(sink_table).wait()
+        table_sink = source_sink_utils.TestAppendSink(
+            ['a'], [DataTypes.INT()])
+        self.t_env.register_table_sink("Results", table_sink)
+        table.map(inc).execute_insert("Result").wait()
 
         actual = source_sink_utils.results()
         self.assert_equals(actual, ['+I[42]', '+I[5]', '+I[1000]', '+I[1000]'])
