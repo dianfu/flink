@@ -446,9 +446,13 @@ public class CommonPythonUtil {
             }
 
             assert operand instanceof RexInputRef;
-            Integer inputOffset = inputNodes.size();
-            inputs.add(inputOffset);
-            inputNodes.put(operand, inputOffset);
+            if (inputNodes.containsKey(operand)) {
+                inputs.add(inputNodes.get(operand));
+            } else {
+                Integer inputOffset = inputNodes.size();
+                inputs.add(inputOffset);
+                inputNodes.put(operand, inputOffset);
+            }
         }
         return new PythonFunctionInfo((PythonFunction) functionDefinition, inputs.toArray());
     }
