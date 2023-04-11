@@ -25,9 +25,9 @@ from pyflink.datastream import MapFunction
 from pyflink.datastream.connectors.file_system import FileSource, FileSink
 from pyflink.datastream.formats.csv import CsvSchema, CsvReaderFormat, CsvBulkWriters, \
     CsvRowSerializationSchema, CsvRowDeserializationSchema
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes
+from pyflink.testing.source_sink_utils import DataStreamTestSinkFunction
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, PyFlinkTestCase
 from pyflink.util.java_utils import get_j_env_configuration
 

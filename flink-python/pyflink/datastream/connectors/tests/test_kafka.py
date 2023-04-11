@@ -37,10 +37,9 @@ from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import (
     PyFlinkStreamingTestCase,
     PyFlinkTestCase,
-    invoke_java_object_method,
-    to_java_data_structure,
 )
-from pyflink.util.java_utils import to_jarray, is_instance_of, get_field_value
+from pyflink.util.java_utils import to_jarray, is_instance_of, get_field_value, \
+    invoke_method_with_no_args, to_java_data_structure
 
 
 class KafkaSourceTests(PyFlinkStreamingTestCase):
@@ -67,7 +66,7 @@ class KafkaSourceTests(PyFlinkStreamingTestCase):
         j_start_up_mode = get_field_value(flink_kafka_consumer.get_java_function(), 'startupMode')
 
         j_deserializer = get_field_value(flink_kafka_consumer.get_java_function(), 'deserializer')
-        j_deserialize_type_info = invoke_java_object_method(j_deserializer, "getProducedType")
+        j_deserialize_type_info = invoke_method_with_no_args(j_deserializer, "getProducedType")
         deserialize_type_info = typeinfo._from_java_type(j_deserialize_type_info)
         self.assertTrue(deserialize_type_info == type_info)
         self.assertTrue(j_start_up_mode.equals(get_gateway().jvm
@@ -75,7 +74,7 @@ class KafkaSourceTests(PyFlinkStreamingTestCase):
                                                .kafka.config.StartupMode.EARLIEST))
         j_topic_desc = get_field_value(flink_kafka_consumer.get_java_function(),
                                        'topicsDescriptor')
-        j_topics = invoke_java_object_method(j_topic_desc, 'getFixedTopics')
+        j_topics = invoke_method_with_no_args(j_topic_desc, 'getFixedTopics')
         self.assertEqual(['test_source_topic'], list(j_topics))
 
         # Test for kafka producer

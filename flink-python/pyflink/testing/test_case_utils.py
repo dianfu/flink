@@ -15,29 +15,23 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 #################################################################################
-import calendar
-import datetime
 import glob
 import logging
 import os
-import re
 import shutil
 import sys
 import tempfile
-import time
 import unittest
 from abc import abstractmethod
-from decimal import Decimal
 
 from py4j.java_gateway import JavaObject
 
-from pyflink.common import JobExecutionResult, Time, Instant, Row
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table.table_environment import StreamTableEnvironment
-from pyflink.util.java_utils import add_jars_to_context_class_loader, to_jarray
+from pyflink.util.java_utils import add_jars_to_context_class_loader
 
 if os.getenv("VERBOSE"):
     log_level = logging.DEBUG
@@ -47,32 +41,12 @@ logging.basicConfig(stream=sys.stdout, level=log_level,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 
-def exec_insert_table(table, table_path) -> JobExecutionResult:
-    return table.execute_insert(table_path).get_job_client().get_job_execution_result().result()
-
-
 def _load_specific_flink_module_jars(jars_relative_path):
     flink_source_root = _find_flink_source_root()
     jars_abs_path = flink_source_root + jars_relative_path
     specific_jars = glob.glob(jars_abs_path + '/target/flink*.jar')
     specific_jars = ['file://' + specific_jar for specific_jar in specific_jars]
     add_jars_to_context_class_loader(specific_jars)
-
-
-def invoke_java_object_method(obj, method_name):
-    clz = obj.getClass()
-    j_method = None
-    while clz is not None:
-        try:
-            j_method = clz.getDeclaredMethod(method_name, None)
-            if j_method is not None:
-                break
-        except:
-            clz = clz.getSuperclass()
-    if j_method is None:
-        raise Exception("No such method: " + method_name)
-    j_method.setAccessible(True)
-    return j_method.invoke(obj, to_jarray(get_gateway().jvm.Object, []))
 
 
 class PyFlinkTestCase(unittest.TestCase):
@@ -153,6 +127,30 @@ class PyFlinkUTTestCase(PyFlinkTestCase):
         self.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 
 
+class PyFlinkStreamingTestCase(PyFlinkITTestCase):
+    """
+    Base class for streaming tests.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkStreamingTestCase, cls).setUpClass()
+        cls.env.set_parallelism(2)
+        cls.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+
+
+class PyFlinkBatchTestCase(PyFlinkITTestCase):
+    """
+    Base class for batch tests.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super(PyFlinkBatchTestCase, cls).setUpClass()
+        cls.env.set_parallelism(2)
+        cls.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
+
+
 class PyFlinkStreamTableTestCase(PyFlinkITTestCase):
     """
     Base class for table stream tests.
@@ -179,30 +177,6 @@ class PyFlinkBatchTableTestCase(PyFlinkITTestCase):
         cls.env.set_parallelism(2)
         cls.t_env = StreamTableEnvironment.create(cls.env)
         cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
-
-
-class PyFlinkStreamingTestCase(PyFlinkITTestCase):
-    """
-    Base class for streaming tests.
-    """
-
-    @classmethod
-    def setUpClass(cls):
-        super(PyFlinkStreamingTestCase, cls).setUpClass()
-        cls.env.set_parallelism(2)
-        cls.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
-
-
-class PyFlinkBatchTestCase(PyFlinkITTestCase):
-    """
-    Base class for batch tests.
-    """
-
-    @classmethod
-    def setUpClass(cls):
-        super(PyFlinkBatchTestCase, cls).setUpClass()
-        cls.env.set_parallelism(2)
-        cls.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
 
 
 class PythonAPICompletenessTestCase(object):
@@ -282,115 +256,3 @@ class PythonAPICompletenessTestCase(object):
     def test_completeness(self):
         self.check_methods()
 
-
-def replace_uuid(input_obj):
-    if isinstance(input_obj, str):
-        return re.sub(r'[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}',
-                      '{uuid}', input_obj)
-    elif isinstance(input_obj, dict):
-        input_obj_copy = dict()
-        for key in input_obj:
-            input_obj_copy[replace_uuid(key)] = replace_uuid(input_obj[key])
-        return input_obj_copy
-
-
-class Tuple2(object):
-
-    def __init__(self, f0, f1):
-        self.f0 = f0
-        self.f1 = f1
-        self.field = [f0, f1]
-
-    def getField(self, index):
-        return self.field[index]
-
-
-class TestEnv(object):
-
-    def __init__(self):
-        self.result = []
-
-    def registerCachedFile(self, file_path, key):
-        self.result.append(Tuple2(key, file_path))
-
-    def getCachedFiles(self):
-        return self.result
-
-    def to_dict(self):
-        result = dict()
-        for item in self.result:
-            result[item.f0] = item.f1
-        return result
-
-
-DATE_EPOCH_ORDINAL = datetime.datetime(1970, 1, 1).toordinal()
-TIME_EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 3
-
-
-def _date_to_millis(d: datetime.date):
-    return (d.toordinal() - DATE_EPOCH_ORDINAL) * 86400 * 1000
-
-
-def _time_to_millis(t: datetime.time):
-    if t.tzinfo is not None:
-        offset = t.utcoffset()
-        offset = offset if offset else datetime.timedelta()
-        offset_millis = \
-            (offset.days * 86400 + offset.seconds) * 10 ** 3 + offset.microseconds // 1000
-    else:
-        offset_millis = TIME_EPOCH_ORDINAL
-    minutes = t.hour * 60 + t.minute
-    seconds = minutes * 60 + t.second
-    return seconds * 10 ** 3 + t.microsecond // 1000 - offset_millis
-
-
-def to_java_data_structure(value):
-    jvm = get_gateway().jvm
-    if isinstance(value, (int, float, str, bytes)):
-        return value
-    elif isinstance(value, Decimal):
-        return jvm.java.math.BigDecimal.valueOf(float(value))
-    elif isinstance(value, datetime.datetime):
-        if value.tzinfo is None:
-            return jvm.java.sql.Timestamp(
-                _date_to_millis(value.date()) + _time_to_millis(value.time())
-            )
-        return jvm.java.time.Instant.ofEpochMilli(
-            (
-                calendar.timegm(value.utctimetuple()) +
-                calendar.timegm(time.localtime(0))
-            ) * 1000 +
-            value.microsecond // 1000
-        )
-    elif isinstance(value, datetime.date):
-        return jvm.java.sql.Date(_date_to_millis(value))
-    elif isinstance(value, datetime.time):
-        return jvm.java.sql.Time(_time_to_millis(value))
-    elif isinstance(value, Time):
-        return jvm.java.sql.Time(value.to_milliseconds())
-    elif isinstance(value, Instant):
-        return jvm.java.time.Instant.ofEpochMilli(value.to_epoch_milli())
-    elif isinstance(value, (list, tuple)):
-        j_list = jvm.java.util.ArrayList()
-        for i in value:
-            j_list.add(to_java_data_structure(i))
-        return j_list
-    elif isinstance(value, dict):
-        j_map = jvm.java.util.HashMap()
-        for k, v in value.items():
-            j_map.put(to_java_data_structure(k), to_java_data_structure(v))
-        return j_map
-    elif isinstance(value, Row):
-        if hasattr(value, '_fields'):
-            j_row = jvm.org.apache.flink.types.Row.withNames(value.get_row_kind().to_j_row_kind())
-            for field_name, value in zip(value._fields, value._values):
-                j_row.setField(field_name, to_java_data_structure(value))
-        else:
-            j_row = jvm.org.apache.flink.types.Row.withPositions(
-                value.get_row_kind().to_j_row_kind(), len(value)
-            )
-            for idx, value in enumerate(value._values):
-                j_row.setField(idx, to_java_data_structure(value))
-        return j_row
-    else:
-        raise TypeError('unsupported value type {}'.format(str(type(value))))

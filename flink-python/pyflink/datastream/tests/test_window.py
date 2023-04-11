@@ -30,8 +30,8 @@ from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
                                        CountWindow, PurgingTrigger, EventTimeTrigger, TimeWindow,
                                        GlobalWindows, CountTrigger)
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
+from pyflink.testing.source_sink_utils import DataStreamTestSinkFunction
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 from pyflink.util.java_utils import get_j_env_configuration
 

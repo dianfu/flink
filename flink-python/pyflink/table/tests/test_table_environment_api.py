@@ -29,7 +29,6 @@ from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.datastream import MergingWindowAssigner, TimeWindow, Trigger, TriggerResult, OutputTag
 from pyflink.datastream.functions import WindowFunction, ProcessFunction
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.datastream.window import TimeWindowSerializer
 from pyflink.java_gateway import get_gateway
 from pyflink.table import (DataTypes, StreamTableEnvironment, EnvironmentSettings, Module,
@@ -41,6 +40,7 @@ from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.types import RowType, Row, UserDefinedType
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
+from pyflink.testing.source_sink_utils import DataStreamTestSinkFunction
 from pyflink.testing.test_case_utils import (PyFlinkStreamTableTestCase, PyFlinkUTTestCase,
                                              _load_specific_flink_module_jars)
 from pyflink.util.java_utils import get_j_env_configuration

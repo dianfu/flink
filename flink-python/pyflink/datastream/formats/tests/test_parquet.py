@@ -45,11 +45,12 @@ from pyflink.datastream.formats.tests.test_avro import \
 from pyflink.datastream.formats.avro import GenericRecordAvroTypeInfo, AvroSchema
 from pyflink.datastream.formats.parquet import AvroParquetReaders, ParquetColumnarRowInputFormat, \
     AvroParquetWriters, ParquetBulkWriters
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.datastream.utils import create_hadoop_configuration
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import RowType, DataTypes, _to_java_data_type
-from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, to_java_data_structure
+from pyflink.testing.source_sink_utils import DataStreamTestSinkFunction
+from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
+from pyflink.util.java_utils import to_java_data_structure
 
 
 @unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,

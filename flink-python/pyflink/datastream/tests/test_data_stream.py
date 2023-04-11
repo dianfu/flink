@@ -38,9 +38,9 @@ from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
                                       ReducingStateDescriptor, ReducingState, AggregatingState,
                                       AggregatingStateDescriptor, StateTtlConfig)
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import Counter, Meter, Distribution
+from pyflink.testing.source_sink_utils import DataStreamTestSinkFunction
 from pyflink.testing.test_case_utils import (PyFlinkBatchTestCase, PyFlinkStreamingTestCase,
                                              PyFlinkTestCase)
 from pyflink.util.java_utils import get_j_env_configuration

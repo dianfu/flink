@@ -34,7 +34,8 @@ from pyflink.datastream.formats.tests.test_parquet import _create_parquet_array_
     _check_parquet_array_results, _create_parquet_map_row_and_data, _check_parquet_map_results
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import RowType, DataTypes
-from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, to_java_data_structure
+from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
+from pyflink.util.java_utils import to_java_data_structure
 
 
 @unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,

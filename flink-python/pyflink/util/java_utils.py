@@ -15,12 +15,16 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
+import calendar
+import datetime
+import time
 from datetime import timedelta
+from decimal import Decimal
 
 from py4j.java_gateway import JavaClass, get_java_class, JavaObject
 from py4j.protocol import Py4JJavaError
 
+from pyflink.common import Time, Instant, Row
 from pyflink.java_gateway import get_gateway
 
 
@@ -36,24 +40,6 @@ def to_jarray(j_type, arr):
     for i in range(0, len(arr)):
         j_arr[i] = arr[i]
     return j_arr
-
-
-def to_j_flink_time(time_delta):
-    gateway = get_gateway()
-    TimeUnit = gateway.jvm.java.util.concurrent.TimeUnit
-    Time = gateway.jvm.org.apache.flink.api.common.time.Time
-    if isinstance(time_delta, timedelta):
-        total_microseconds = round(time_delta.total_seconds() * 1000 * 1000)
-        return Time.of(total_microseconds, TimeUnit.MICROSECONDS)
-    else:
-        # time delta in milliseconds
-        total_milliseconds = time_delta
-        return Time.milliseconds(total_milliseconds)
-
-
-def from_j_flink_time(j_flink_time):
-    total_milliseconds = j_flink_time.toMilliseconds()
-    return timedelta(milliseconds=total_milliseconds)
 
 
 def load_java_class(class_name):
@@ -119,6 +105,22 @@ def invoke_method(obj, object_type, method_name, args=None, arg_types=None):
             [load_java_class(arg_type) for arg_type in arg_types or []]))
     method.setAccessible(True)
     return method.invoke(obj, to_jarray(get_gateway().jvm.Object, args or []))
+
+
+def invoke_method_with_no_args(obj, method_name):
+    clz = obj.getClass()
+    j_method = None
+    while clz is not None:
+        try:
+            j_method = clz.getDeclaredMethod(method_name, None)
+            if j_method is not None:
+                break
+        except:
+            clz = clz.getSuperclass()
+    if j_method is None:
+        raise Exception("No such method: " + method_name)
+    j_method.setAccessible(True)
+    return j_method.invoke(obj, to_jarray(get_gateway().jvm.Object, []))
 
 
 def is_local_deployment(j_configuration):
@@ -202,3 +204,97 @@ def create_url_class_loader(urls, parent_class_loader):
     url_class_loader = gateway.jvm.java.net.URLClassLoader(
         to_jarray(gateway.jvm.java.net.URL, urls), parent_class_loader)
     return url_class_loader
+
+
+def to_java_data_structure(value):
+    jvm = get_gateway().jvm
+    if isinstance(value, (int, float, str, bytes)):
+        return value
+    elif isinstance(value, Decimal):
+        return jvm.java.math.BigDecimal.valueOf(float(value))
+    elif isinstance(value, datetime.datetime):
+        if value.tzinfo is None:
+            return jvm.java.sql.Timestamp(
+                _date_to_millis(value.date()) + _time_to_millis(value.time())
+            )
+        return jvm.java.time.Instant.ofEpochMilli(
+            (
+                calendar.timegm(value.utctimetuple()) +
+                calendar.timegm(time.localtime(0))
+            ) * 1000 +
+            value.microsecond // 1000
+        )
+    elif isinstance(value, datetime.date):
+        return jvm.java.sql.Date(_date_to_millis(value))
+    elif isinstance(value, datetime.time):
+        return jvm.java.sql.Time(_time_to_millis(value))
+    elif isinstance(value, Time):
+        return jvm.java.sql.Time(value.to_milliseconds())
+    elif isinstance(value, Instant):
+        return jvm.java.time.Instant.ofEpochMilli(value.to_epoch_milli())
+    elif isinstance(value, (list, tuple)):
+        j_list = jvm.java.util.ArrayList()
+        for i in value:
+            j_list.add(to_java_data_structure(i))
+        return j_list
+    elif isinstance(value, dict):
+        j_map = jvm.java.util.HashMap()
+        for k, v in value.items():
+            j_map.put(to_java_data_structure(k), to_java_data_structure(v))
+        return j_map
+    elif isinstance(value, Row):
+        if hasattr(value, '_fields'):
+            j_row = jvm.org.apache.flink.types.Row.withNames(value.get_row_kind().to_j_row_kind())
+            for field_name, value in zip(value._fields, value._values):
+                j_row.setField(field_name, to_java_data_structure(value))
+        else:
+            j_row = jvm.org.apache.flink.types.Row.withPositions(
+                value.get_row_kind().to_j_row_kind(), len(value)
+            )
+            for idx, value in enumerate(value._values):
+                j_row.setField(idx, to_java_data_structure(value))
+        return j_row
+    else:
+        raise TypeError('unsupported value type {}'.format(str(type(value))))
+
+
+# ---- Date Time utilities ----
+
+
+def from_j_flink_time(j_flink_time):
+    total_milliseconds = j_flink_time.toMilliseconds()
+    return timedelta(milliseconds=total_milliseconds)
+
+
+def to_j_flink_time(time_delta):
+    gateway = get_gateway()
+    TimeUnit = gateway.jvm.java.util.concurrent.TimeUnit
+    Time = gateway.jvm.org.apache.flink.api.common.time.Time
+    if isinstance(time_delta, timedelta):
+        total_microseconds = round(time_delta.total_seconds() * 1000 * 1000)
+        return Time.of(total_microseconds, TimeUnit.MICROSECONDS)
+    else:
+        # time delta in milliseconds
+        total_milliseconds = time_delta
+        return Time.milliseconds(total_milliseconds)
+
+
+DATE_EPOCH_ORDINAL = datetime.datetime(1970, 1, 1).toordinal()
+TIME_EPOCH_ORDINAL = calendar.timegm(time.localtime(0)) * 10 ** 3
+
+
+def _date_to_millis(d: datetime.date):
+    return (d.toordinal() - DATE_EPOCH_ORDINAL) * 86400 * 1000
+
+
+def _time_to_millis(t: datetime.time):
+    if t.tzinfo is not None:
+        offset = t.utcoffset()
+        offset = offset if offset else datetime.timedelta()
+        offset_millis = \
+            (offset.days * 86400 + offset.seconds) * 10 ** 3 + offset.microseconds // 1000
+    else:
+        offset_millis = TIME_EPOCH_ORDINAL
+    minutes = t.hour * 60 + t.minute
+    seconds = minutes * 60 + t.second
+    return seconds * 10 ** 3 + t.microsecond // 1000 - offset_millis

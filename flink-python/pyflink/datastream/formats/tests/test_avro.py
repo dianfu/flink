@@ -28,8 +28,8 @@ from pyflink.datastream import MapFunction
 from pyflink.datastream.connectors.file_system import FileSink
 from pyflink.datastream.formats.avro import AvroSchema, GenericRecordAvroTypeInfo, \
     AvroBulkWriters, AvroInputFormat
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
+from pyflink.testing.source_sink_utils import DataStreamTestSinkFunction
 from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 
 

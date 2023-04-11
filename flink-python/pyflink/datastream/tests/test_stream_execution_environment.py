@@ -34,11 +34,11 @@ from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema
 from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.slot_sharing_group import MemorySize
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, StreamTableEnvironment, EnvironmentSettings
-from pyflink.testing.test_case_utils import PyFlinkTestCase, exec_insert_table
+from pyflink.testing.source_sink_utils import DataStreamTestSinkFunction
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 from pyflink.util.java_utils import get_j_env_configuration
 
 
@@ -229,9 +229,11 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                 'format' = 'csv'
             )
         """.format(tmp_dir, round(time.time())))
-        execution_result = exec_insert_table(
-            t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c']),
-            'Results')
+        execution_result = \
+            t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])\
+                 .execute_insert('Results') \
+                 .get_job_client().get_job_execution_result().result()
+
         self.assertIsNotNone(execution_result.get_job_id())
         self.assertIsNotNone(execution_result.get_net_runtime())
         self.assertEqual(len(execution_result.get_all_accumulator_results()), 0)

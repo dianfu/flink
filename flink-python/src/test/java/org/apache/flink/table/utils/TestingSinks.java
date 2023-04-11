@@ -73,7 +73,7 @@ public class TestingSinks {
 
         @Override
         public String asSummaryString() {
-            return String.format("TestingAppendSink(%s)", DataType.getFields(rowDataType));
+            return String.format("TestAppendingSink(%s)", DataType.getFields(rowDataType));
         }
     }
 
