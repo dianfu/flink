@@ -27,8 +27,7 @@ import uuid
 from pyflink.common import Configuration, ExecutionConfig
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
-                                CheckpointingMode, MemoryStateBackend,
-                                SlotSharingGroup)
+                                CheckpointingMode, SlotSharingGroup)
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema
@@ -77,38 +76,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(parallelism, 8)
 
-    def test_add_default_kryo_serializer(self):
-        self.env.add_default_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.env.get_config().get_default_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type_with_kryo_serializer(self):
-        self.env.register_type_with_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.env.get_config().get_registered_types_with_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type(self):
-        self.env.register_type("org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
-
-        type_list = self.env.get_config().get_registered_pojo_types()
-
-        self.assertEqual(type_list,
-                         ['org.apache.flink.runtime.state.StateBackendTestBase$TestPojo'])
-
     def test_get_set_max_parallelism(self):
         self.env.set_max_parallelism(12)
 
@@ -153,21 +120,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         mode = self.env.get_checkpointing_mode()
 
         self.assertEqual(mode, CheckpointingMode.AT_LEAST_ONCE)
-
-    def test_get_state_backend(self):
-        state_backend = self.env.get_state_backend()
-
-        self.assertIsNone(state_backend)
-
-    def test_set_state_backend(self):
-        input_backend = MemoryStateBackend()
-
-        self.env.set_state_backend(input_backend)
-
-        output_backend = self.env.get_state_backend()
-
-        self.assertEqual(output_backend._j_memory_state_backend,
-                         input_backend._j_memory_state_backend)
 
     def test_is_changelog_state_backend_enabled(self):
         self.assertIsNone(self.env.is_changelog_state_backend_enabled())
