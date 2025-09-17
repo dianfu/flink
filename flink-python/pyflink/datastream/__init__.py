@@ -260,6 +260,7 @@ Other important classes:
       Tag with a name and type for identifying side output of an operator
 """
 from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
+from pyflink.datastream.async_data_stream import AsyncDataStream
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream, KeyedStream, WindowedStream, \
     ConnectedStreams, DataStreamSink, BroadcastStream, BroadcastConnectedStream
@@ -270,7 +271,8 @@ from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFun
                                           SinkFunction, CoProcessFunction, KeyedProcessFunction,
                                           KeyedCoProcessFunction, AggregateFunction, WindowFunction,
                                           ProcessWindowFunction, BroadcastProcessFunction,
-                                          KeyedBroadcastProcessFunction)
+                                          KeyedBroadcastProcessFunction, AsyncFunction,
+                                          ResultFuture)
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
 from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
                                               RocksDBStateBackend, CustomStateBackend,
@@ -296,6 +298,7 @@ __all__ = [
     'ConnectedStreams',
     'BroadcastStream',
     'BroadcastConnectedStream',
+    'AsyncDataStream',
     'DataStreamSink',
     'MapFunction',
     'CoMapFunction',
@@ -312,6 +315,7 @@ __all__ = [
     'AggregateFunction',
     'BroadcastProcessFunction',
     'KeyedBroadcastProcessFunction',
+    'AsyncFunction',
     'RuntimeContext',
     'TimerService',
     'CheckpointingMode',
@@ -346,5 +350,6 @@ __all__ = [
     'SinkFunction',
     'SlotSharingGroup',
     'MemorySize',
-    'OutputTag'
+    'OutputTag',
+    'ResultFuture'
 ]
