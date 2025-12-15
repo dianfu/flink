@@ -63,6 +63,13 @@ public class PythonOptions {
                                     + "user-defined function execution. The arrow batch size should not exceed the "
                                     + "bundle size. Otherwise, the bundle size will be used as the arrow batch size.");
 
+    /** The maximum number of states cached in a Python UDF worker. */
+    public static final ConfigOption<Integer> DATA_BUFFER_SIZE_LIMIT =
+            ConfigOptions.key("python.fn-execution.data_buffer_size_limit")
+                    .intType()
+                    .defaultValue(8192)
+                    .withDescription("");
+
     /** The configuration to enable or disable metric for Python execution. */
     public static final ConfigOption<Boolean> PYTHON_METRIC_ENABLED =
             ConfigOptions.key("python.metric.enabled")

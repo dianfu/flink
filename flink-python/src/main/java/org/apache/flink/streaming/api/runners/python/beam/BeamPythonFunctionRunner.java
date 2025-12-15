@@ -259,13 +259,19 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             portableOptions = PipelineOptionsFactory.as(PortablePipelineOptions.class);
         }
 
+        List<String> experimentOptions = new ArrayList<>();
         int stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
         if (stateCacheSize > 0) {
-            portableOptions
-                    .as(ExperimentalOptions.class)
-                    .setExperiments(
-                            Collections.singletonList(
-                                    ExperimentalOptions.STATE_CACHE_SIZE + "=" + stateCacheSize));
+            experimentOptions.add(ExperimentalOptions.STATE_CACHE_SIZE + "=" + stateCacheSize);
+        }
+
+        int dataBufferSizeLimit = config.get(PythonOptions.DATA_BUFFER_SIZE_LIMIT);
+        if (dataBufferSizeLimit > 0) {
+            experimentOptions.add("data_buffer_size_limit=" + dataBufferSizeLimit);
+        }
+
+        if (!experimentOptions.isEmpty()) {
+            portableOptions.as(ExperimentalOptions.class).setExperiments(experimentOptions);
         }
 
         // Set log level
