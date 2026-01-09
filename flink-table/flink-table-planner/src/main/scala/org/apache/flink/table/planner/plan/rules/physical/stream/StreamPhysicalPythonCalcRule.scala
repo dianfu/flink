@@ -21,11 +21,11 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalPythonCalc
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
-
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.convert.ConverterRule.Config
+import org.apache.flink.table.planner.plan.utils.AsyncUtil
 
 import scala.collection.JavaConverters._
 
@@ -35,7 +35,7 @@ class StreamPhysicalPythonCalcRule(config: Config) extends ConverterRule(config)
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0)
     val program = calc.getProgram
-    program.getExprList.asScala.exists(containsPythonCall(_))
+    program.getExprList.asScala.exists(containsPythonCall(_)) && program.getExprList.stream.noneMatch(AsyncUtil.containsAsyncCall)
   }
 
   def convert(rel: RelNode): RelNode = {

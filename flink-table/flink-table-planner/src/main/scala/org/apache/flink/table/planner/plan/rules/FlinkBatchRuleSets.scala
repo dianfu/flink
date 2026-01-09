@@ -394,6 +394,7 @@ object FlinkBatchRuleSets {
     // calc
     BatchPhysicalCalcRule.INSTANCE,
     BatchPhysicalPythonCalcRule.INSTANCE,
+    BatchPhysicalPythonAsyncCalcRule.INSTANCE,
     // union
     BatchPhysicalUnionRule.INSTANCE,
     // sort
