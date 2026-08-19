@@ -80,6 +80,7 @@ stages:
           run_end_to_end: false
           container: flink-build-container
           jdk: 17
+          python_tox_env: py39-cython
       - job: docs_404_check # run on a MSFT provided machine
         pool:
           vmImage: 'ubuntu-24.04'

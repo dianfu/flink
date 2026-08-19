@@ -21,6 +21,7 @@ parameters:
   run_end_to_end: # if set to 'true', the end to end tests will be executed
   container: # the container name for the build
   jdk: # the jdk version to use
+  python_tox_env: '' # the tox environment to use for Python tests
 
 jobs:
 - job: compile_${{parameters.stage_name}}
@@ -126,6 +127,7 @@ jobs:
         module: core
       python:
         module: python
+        PYFLINK_TOX_ENV: ${{parameters.python_tox_env}}
       table:
         module: table
       connect:
