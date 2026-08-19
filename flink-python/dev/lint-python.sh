@@ -567,7 +567,10 @@ function tox_check() {
     chmod +x $FLINK_PYTHON_DIR/../build-target/bin/*
     chmod +x $FLINK_PYTHON_DIR/dev/*
 
-    if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
+    if [[ -n "${PYFLINK_TOX_ENV:-}" ]]; then
+        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini \
+            -e "${PYFLINK_TOX_ENV}" --recreate 2>&1 | tee -a $LOG_FILE
+    elif [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
         # Only run test in latest python version triggered by a Git push
         $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
     else
@@ -785,6 +788,8 @@ Examples:
   ./lint-python.sh -s tox -f       =>  reinstall environment with tox.
   ./lint-python.sh -e tox,flake8   =>  exclude checks tox,flake8.
   ./lint-python.sh -i flake8       =>  include checks flake8.
+  PYFLINK_TOX_ENV=py39-cython ./lint-python.sh -i tox
+                                    =>  run tox checks with Python 3.9.
   ./lint-python.sh                 =>  exec all checks.
   ./lint-python.sh -f              =>  reinstall environment with all components and exec all checks.
   ./lint-python.sh -l              =>  list all checks supported.

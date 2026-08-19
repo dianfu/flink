@@ -32,6 +32,10 @@ on:
         description: "The Java version to use."
         default: 17
         type: number
+      python_tox_env:
+        description: "The tox environment to use for Python tests."
+        default: ""
+        type: string
     secrets:
       s3_bucket:
         required: false
@@ -302,6 +306,7 @@ jobs:
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
           DOCKER_HOST: unix:///var/run/docker.sock
+          PYFLINK_TOX_ENV: ${{ inputs.python_tox_env }}
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         run: |
           runuser -u flink -- bash -c '${{ inputs.environment }} PROFILE="$PROFILE -Pgithub-actions" ./tools/ci/uploading_watchdog.sh \
