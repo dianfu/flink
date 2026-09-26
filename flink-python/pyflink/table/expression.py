@@ -1597,22 +1597,62 @@ class Expression(Generic[T]):
         """
         return _binary_op("repeat")(self, n)
 
-    def over(self, alias) -> 'Expression':
+    def over(
+        self,
+        alias=None,
+        *,
+        order_by=None,
+        partition_by=None,
+        rows=None,
+        range=None,
+    ) -> 'Expression':
         """
-        Defines an aggregation to be used for a previously specified over window.
+        Defines an aggregation over a named Table API window or an inline DataFrame window.
 
-        Example:
-        ::
+        A positional ``alias`` or ``alias=`` refers to a named Table API window. Inline DataFrame
+        windows require ``order_by=`` and can use ``rows`` or ``range``. Matching Table API frame
+        constants are also accepted (``*_ROW`` with ``rows``, ``*_RANGE`` with ``range``).
 
-            >>> tab.window(Over
-            >>>         .partition_by(col('c'))
-            >>>         .order_by(col('rowtime'))
-            >>>         .preceding(row_interval(2))
-            >>>         .following(CURRENT_ROW)
-            >>>         .alias("w")) \\
-            >>>     .select(col('c'), col('a'), col('a').count.over(col('w')))
+        Given a DataFrame ``df`` containing ``key``, ``amount``, and ``rowtime``::
+
+            >>> import pyflink.dataframe as pf
+            >>> from pyflink.table.expressions import CURRENT_ROW, UNBOUNDED_ROW
+            >>> result = df.select(
+            ...     "key",
+            ...     running=pf.col("amount").sum.over(
+            ...         order_by="rowtime", partition_by="key",
+            ...         rows=(pf.preceding(2), CURRENT_ROW)))
+
+        Table API frame constants can also define the bounds::
+
+            >>> cumulative = pf.col("amount").sum.over(
+            ...     order_by="rowtime", rows=(UNBOUNDED_ROW, CURRENT_ROW))
+
+        For an existing named Table API window ``w``::
+
+            >>> pf.col("amount").sum.over(alias=pf.col("w"))
         """
-        return _binary_op("over")(self, alias)
+        if alias is not None and order_by is not None:
+            raise TypeError("over() cannot specify both alias and order_by")
+        if alias is not None and (
+            partition_by is not None or rows is not None or range is not None
+        ):
+            raise TypeError("over() cannot combine alias with inline window arguments")
+        if alias is not None:
+            return _binary_op("over")(self, alias)
+
+        if order_by is None:
+            raise TypeError("over() missing required argument: order_by")
+
+        from pyflink.table._over_window import _build_over_expression
+
+        return _build_over_expression(
+            self,
+            order_by,
+            partition_by=partition_by,
+            rows=rows,
+            range_=range,
+        )
 
     @property
     def reverse(self) -> 'Expression[str]':
