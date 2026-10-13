@@ -151,10 +151,16 @@ class OverWindowTests(PyFlinkTestCase):
             order_by="rowtime", rows=table_expressions.UNBOUNDED_ROW
         )
 
-        self.assertIn("UNBOUNDED_RANGE", str(default_frame))
-        self.assertIn("CURRENT_RANGE", str(default_frame))
+        self.assertIn("null, null", str(default_frame))
         self.assertIn("UNBOUNDED_ROW", str(unbounded_rows))
         self.assertIn("CURRENT_ROW", str(unbounded_rows))
+
+    def test_lead_and_lag_without_explicit_frames_use_omitted_bounds(self):
+        lag = table_expressions.lag(pf.col("amount")).over(order_by="rowtime")
+        lead = table_expressions.lead(pf.col("amount")).over(order_by="rowtime")
+
+        self.assertIn("over(lag(amount, 1), rowtime, null, null)", str(lag))
+        self.assertIn("over(lead(amount, 1), rowtime, null, null)", str(lead))
 
     def test_matching_table_frame_constants_are_accepted(self):
         cases = (

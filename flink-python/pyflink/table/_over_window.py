@@ -176,7 +176,11 @@ def _normalize_frame(
         raise ValueError("rows and range are mutually exclusive")
 
     if rows is None and range_ is None:
-        return _unbounded_expression("range"), _current_expression("range")
+        from pyflink.table.expressions import lit
+        from pyflink.table.types import DataTypes
+
+        omitted_bound = lit(None, DataTypes.NULL())
+        return omitted_bound, omitted_bound
 
     kind = "rows" if rows is not None else "range"
     value = rows if rows is not None else range_

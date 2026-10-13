@@ -31,7 +31,9 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
@@ -87,6 +89,35 @@ class OverWindowExpressionResolverTest {
     }
 
     @Test
+    void appliesDefaultRangeFrameToExpandedAggregate() {
+        Expression expandedOver =
+                expandedOver(
+                        BuiltInFunctionDefinitions.SUM,
+                        valueLiteral(null, DataTypes.NULL()),
+                        valueLiteral(null, DataTypes.NULL()));
+
+        CallExpression resolved =
+                (CallExpression)
+                        resolver(Collections.emptyList()).resolve(List.of(expandedOver)).get(0);
+        List<Expression> children = resolved.getChildren();
+
+        assertThat(children.get(2).asSummaryString()).contains("UNBOUNDED_RANGE");
+        assertThat(children.get(3).asSummaryString()).contains("CURRENT_RANGE");
+    }
+
+    @Test
+    void preservesOmittedBoundsForExpandedLeadAndLag() {
+        assertOmittedBounds(BuiltInFunctionDefinitions.LAG);
+        assertOmittedBounds(BuiltInFunctionDefinitions.LEAD);
+    }
+
+    @Test
+    void rejectsExplicitBoundsForExpandedLeadAndLag() {
+        assertExplicitBoundsRejected(BuiltInFunctionDefinitions.LAG);
+        assertExplicitBoundsRejected(BuiltInFunctionDefinitions.LEAD);
+    }
+
+    @Test
     void expandsLegacyNamedOverWindowAlias() {
         OverWindow window =
                 Over.partitionBy($("tenant")).orderBy($("rowtime")).preceding(lit(2L)).as("w");
@@ -122,6 +153,49 @@ class OverWindowExpressionResolverTest {
 
         assertThatThrownBy(() -> resolver(Collections.emptyList()).resolve(List.of(malformedOver)))
                 .isInstanceOf(ValidationException.class);
+    }
+
+    private static Expression expandedOver(
+            FunctionDefinition aggregate, Expression preceding, Expression following) {
+        return unresolvedCall(
+                BuiltInFunctionDefinitions.OVER,
+                Arrays.asList(
+                        unresolvedCall(aggregate, unresolvedRef("amount")),
+                        unresolvedRef("rowtime"),
+                        preceding,
+                        following));
+    }
+
+    private static void assertOmittedBounds(FunctionDefinition aggregate) {
+        CallExpression resolved =
+                (CallExpression)
+                        resolver(Collections.emptyList())
+                                .resolve(
+                                        List.of(
+                                                expandedOver(
+                                                        aggregate,
+                                                        valueLiteral(null, DataTypes.NULL()),
+                                                        valueLiteral(null, DataTypes.NULL()))))
+                                .get(0);
+
+        assertThat(resolved.getChildren().subList(2, 4))
+                .allSatisfy(
+                        bound -> {
+                            assertThat(bound).isInstanceOf(ValueLiteralExpression.class);
+                            assertThat(((ValueLiteralExpression) bound).isNull()).isTrue();
+                        });
+    }
+
+    private static void assertExplicitBoundsRejected(FunctionDefinition aggregate) {
+        Expression expandedOver =
+                expandedOver(
+                        aggregate,
+                        valueLiteral(OverWindowRange.UNBOUNDED_RANGE),
+                        valueLiteral(OverWindowRange.CURRENT_RANGE));
+
+        assertThatThrownBy(() -> resolver(Collections.emptyList()).resolve(List.of(expandedOver)))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("LEAD/LAG functions do not support");
     }
 
     private static void assertField(Expression expression, String name) {
