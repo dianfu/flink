@@ -241,10 +241,11 @@ different OVER frames in the same projection.
         rows=(pf.preceding(2), pf.following(1)),
     )
 
-The public frame-bound helpers are:
+The public frame-bound descriptor and helpers are:
 
 .. autosummary::
     :toctree: api/
 
+    over_window.FrameBoundary
     preceding
     following

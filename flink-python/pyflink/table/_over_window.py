@@ -16,18 +16,14 @@
 # limitations under the License.
 ################################################################################
 
-"""Helpers for constructing expression-level OVER windows."""
+"""Internal helpers for constructing expression-level OVER windows."""
 
 import datetime
-from dataclasses import dataclass
 from enum import Enum
 from typing import Any, List, Tuple, Union
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression
-from pyflink.util.api_stability_decorators import PublicEvolving
-
-__all__ = ["preceding", "following"]
 
 
 class _BoundaryDirection(Enum):
@@ -35,69 +31,9 @@ class _BoundaryDirection(Enum):
     FOLLOWING = "following"
 
 
-@dataclass(frozen=True)
 class _FrameBoundary:
-    direction: _BoundaryDirection
-    value: Any
-
-    def __repr__(self) -> str:
-        return "%s(%r)" % (self.direction.value, self.value)
-
-
-@PublicEvolving()
-def preceding(value: Union[int, str, datetime.timedelta]) -> _FrameBoundary:
-    """
-    Create a preceding bound for an inline OVER window frame.
-
-    When used in ``rows``, ``value`` must be a positive integer row count. When used in
-    ``range``, it must be a non-negative :class:`datetime.timedelta` or a Flink duration string,
-    such as ``"1 hour"``. The value is validated when the boundary is passed to
-    :meth:`~pyflink.table.expression.Expression.over`.
-
-    :param value: Row count or time interval before the current row or range.
-    :return: A frame-bound descriptor for the lower bound of an explicit OVER frame.
-
-    Example::
-
-        >>> import pyflink.dataframe as pf
-        >>> from pyflink.table.expressions import CURRENT_ROW
-        >>> running = pf.col("amount").sum.over(
-        ...     order_by="event_time",
-        ...     rows=(pf.preceding(2), CURRENT_ROW),
-        ... )
-
-    .. versionadded:: 2.4.0
-    """
-
-    return _FrameBoundary(_BoundaryDirection.PRECEDING, value)
-
-
-@PublicEvolving()
-def following(value: Union[int, str, datetime.timedelta]) -> _FrameBoundary:
-    """
-    Create a following bound for an inline OVER window frame.
-
-    When used in ``rows``, ``value`` must be a positive integer row count. When used in
-    ``range``, it must be a non-negative :class:`datetime.timedelta` or a Flink duration string,
-    such as ``"1 hour"``. The value is validated when the boundary is passed to
-    :meth:`~pyflink.table.expression.Expression.over`. Following upper bounds are supported only
-    in batch mode.
-
-    :param value: Row count or time interval after the current row or range.
-    :return: A frame-bound descriptor for the upper bound of an explicit OVER frame.
-
-    Example::
-
-        >>> import pyflink.dataframe as pf
-        >>> centered = pf.col("amount").sum.over(
-        ...     order_by="event_time",
-        ...     rows=(pf.preceding(2), pf.following(1)),
-        ... )
-
-    .. versionadded:: 2.4.0
-    """
-
-    return _FrameBoundary(_BoundaryDirection.FOLLOWING, value)
+    _direction: _BoundaryDirection
+    _value: Any
 
 
 def _to_column(value: Union[str, Expression], parameter_name: str) -> Expression:
@@ -208,16 +144,16 @@ def _normalize_bound(bound: Any, kind: str, position: str) -> Expression:
         if position == "lower"
         else _BoundaryDirection.FOLLOWING
     )
-    if bound.direction is not expected_direction:
+    if bound._direction is not expected_direction:
         raise ValueError("invalid %s bound direction" % position)
-    return _value_expression(bound.value, kind)
+    return _value_expression(bound._value, kind)
 
 
 def _validate_explicit_bound_kinds(bounds: Tuple[Any, Any], kind: str) -> None:
     for bound in bounds:
         if not isinstance(bound, _FrameBoundary):
             continue
-        value = bound.value
+        value = bound._value
         if kind == "rows" and (
             isinstance(value, bool)
             or not isinstance(value, int)

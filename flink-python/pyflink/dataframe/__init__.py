@@ -73,10 +73,10 @@ from pyflink.dataframe.io import (
     read_parquet,
 )
 from pyflink.dataframe.iteration import CloseableIterator
+from pyflink.dataframe.over_window import following, preceding
 from pyflink.dataframe.sql import sql
 from pyflink.dataframe.udf import udf
 from pyflink.dataframe.udtf import udtf
-from pyflink.table._over_window import following, preceding
 
 __all__ = [
     "CloseableIterator",

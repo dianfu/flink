@@ -194,17 +194,19 @@ class OverWindowTests(PyFlinkTestCase):
         import unittest
         from unittest.mock import patch
 
+        from pyflink.dataframe import over_window
         from pyflink.table import _over_window
 
         with patch(
             "pyflink.table.expression.get_gateway",
             side_effect=AssertionError("module introspection accessed the gateway"),
         ):
-            for value in vars(_over_window).values():
-                try:
-                    issubclass(value, unittest.TestCase)
-                except TypeError:
-                    pass
+            for module in (over_window, _over_window):
+                for value in vars(module).values():
+                    try:
+                        issubclass(value, unittest.TestCase)
+                    except TypeError:
+                        pass
 
 
 class OverWindowBatchITTests(PyFlinkTestCase):
